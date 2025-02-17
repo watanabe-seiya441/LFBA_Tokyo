@@ -14,7 +14,7 @@ void setup() {
     for (int pin : buttonPins) pinMode(pin, INPUT_PULLUP);
     for (int pin : toggleSwitches) pinMode(pin, INPUT_PULLUP);
 
-    sendNotification('I');
+    sendNotification('S');
 }
 
 void loop() {
@@ -25,7 +25,7 @@ void loop() {
             if (digitalRead(buttonPins[i]) == LOW) {
                 while (digitalRead(buttonPins[i]) == LOW); // Debounce
                 state ^= (1 << i);
-                sendNotification('E');
+                sendNotification('S');
             }
         }
     }
