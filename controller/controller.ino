@@ -14,6 +14,9 @@ void setup() {
     for (int pin : buttonPins) pinMode(pin, INPUT_PULLUP);
     for (int pin : toggleSwitches) pinMode(pin, INPUT_PULLUP);
 
+    // Initialize toggle switch states before sending notification
+    state |= (digitalRead(toggleSwitches[0]) << 5) | (digitalRead(toggleSwitches[1]) << 6);
+
     sendNotification('S');
 }
 
