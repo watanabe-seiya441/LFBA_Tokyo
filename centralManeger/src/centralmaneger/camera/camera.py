@@ -1,5 +1,6 @@
 import cv2
 import time
+from datetime import datetime
 
 # カメラを開く (0 はデフォルトカメラ)
 cap = cv2.VideoCapture(0)
@@ -26,9 +27,10 @@ while True:
     # 1秒ごとに画像を保存
     if current_time - start_time >= capture_interval:
         timestamp = int(current_time)
-        filename = f"image/captured_image_{timestamp}.jpg"
+        filename = f"captured_image_{timestamp}.jpg"
         cv2.imwrite(filename, frame)
-        print(f"画像を保存しました: {filename}")
+        save_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        print(f"画像を保存しました: {filename} | 保存時刻: {save_time}")
         start_time = current_time
     
     # キー入力を待つ (1ms)
