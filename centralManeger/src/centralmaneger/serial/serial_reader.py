@@ -16,6 +16,6 @@ def listen_serial(serial_communication: SerialCommunication) -> None:
     """
     while True:        
         data = serial_communication.read_serial()
-        pattern = r"^S\d{7}"
+        pattern = r"^S\d{6}"
         if data and re.match(pattern, data):
             print(f"Received data: {data}")

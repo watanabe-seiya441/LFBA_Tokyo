@@ -11,6 +11,11 @@ versionを確認
 $ poetry --version
 Poetry (version 2.1.1)
 ```
+if no version is here 
+```
+$ echo "export PATH="$HOME/.local/bin:$PATH"" >> ~/.bashrc
+$ source ~/.bashrc
+```
 また、仮想環境を確認する。
 ```
 $ poetry run python -c "import sys; print(sys.executable)"

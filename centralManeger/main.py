@@ -1,11 +1,16 @@
 import time
+import os
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
+
 from centralmaneger.serial.communication import SerialCommunication
 from centralmaneger.serial.serial_reader import listen_serial
 
 
 def main():
     # シリアルポートとボーレートを適宜設定
-    port = "/dev/ttyUSB0"  # 使用するポートを指定
+    port = "/dev/ttyACM0"  # 使用するポートを指定
     baudrate = 9600  # 適切なボーレートを設定
 
     try:
@@ -16,9 +21,9 @@ def main():
         listen_serial(serial_comm)
     except Exception as e:
         print(f"Error: {e}")
-    finally:
-        serial_comm.close()
-        print("Serial communication closed.")
+    # finally:
+    #     serial_comm.close()
+    #     print("Serial communication closed.")
 
 
 if __name__ == "__main__":
