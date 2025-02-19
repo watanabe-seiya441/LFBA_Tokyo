@@ -1,45 +1,33 @@
 import cv2
-import time
-from datetime import datetime
 
-# カメラを開く (0 はデフォルトカメラ)
-cap = cv2.VideoCapture(0)
+class Camera:
+    def __init__(self, camera_id: int = 0, capture_interval: int = 1):
+        """
+        Initializes the camera with the specified camera ID and capture interval.
 
-if not cap.isOpened():
-    print("カメラを開けませんでした。")
-    exit()
+        Args:
+            camera_id (int): The ID of the camera to use.
+            capture_interval (int): Interval in seconds between captures.
+        """
+        self.cap = cv2.VideoCapture(camera_id)
+        if not self.cap.isOpened():
+            raise ValueError("Unable to open the camera.")
+        self.capture_interval = capture_interval
 
-start_time = time.time()
-capture_interval = 1  # 1秒ごとに撮影
+    def capture_frame(self):
+        """Captures a frame from the camera."""
+        ret, frame = self.cap.read()
+        if not ret:
+            print("Failed to capture a frame.")
+            return None
+        return frame
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        print("フレームを取得できませんでした。")
-        break
-    
-    # 画像を表示
-    cv2.imshow("Camera", frame)
-    
-    # 現在の時間
-    current_time = time.time()
-    
-    # 1秒ごとに画像を保存
-    if current_time - start_time >= capture_interval:
-        timestamp = int(current_time)
-        filename = f"captured_image_{timestamp}.jpg"
+    def save_image(self, filename, frame):
+        """Saves the captured frame as an image file."""
         cv2.imwrite(filename, frame)
-        save_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-        print(f"画像を保存しました: {filename} | 保存時刻: {save_time}")
-        start_time = current_time
-    
-    # キー入力を待つ (1ms)
-    key = cv2.waitKey(1) & 0xFF
-    
-    # 'q' キーで終了
-    if key == ord('q'):
-        break
+        print(f"Image saved: {filename}")
 
-# リソースを解放
-cap.release()
-cv2.destroyAllWindows()
+    def release(self):
+        """Releases the camera resource."""
+        self.cap.release()
+        cv2.destroyAllWindows()
