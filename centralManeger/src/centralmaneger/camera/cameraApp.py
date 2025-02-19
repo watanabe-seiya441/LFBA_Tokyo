@@ -42,9 +42,11 @@ def save_images(stop_event: threading.Event, frame_queue: queue.Queue, image_que
 
         frame = frame_queue.get()
 
-        # Get the latest received data if available
-        if not label_queue.empty():
-            latest_received_data = label_queue.get()
+        # Attempt to get latest received data
+        try:
+            latest_received_data = label_queue.get_nowait()
+        except queue.Empty:
+            pass  # Keep previous value if no new data
 
         # Save the image with received data in the filename
         timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
