@@ -39,7 +39,7 @@ void loop() {
     // Handle serial input when in manual mode
     if (Serial.available()) {
         String received = Serial.readStringUntil('\n');
-        if (is_auto && received.startsWith("C") && received.length() == 5) {
+        if (is_auto && received.startsWith("C") && received.length() == 6) {
             for (int i = 0; i < 4; i++) {
                 state = (state & ~(1 << i)) | ((received[i + 1] - '0') << i);
             }
