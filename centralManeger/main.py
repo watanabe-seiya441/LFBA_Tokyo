@@ -1,9 +1,13 @@
 import threading
 import queue
 import time
+from datetime import datetime
+from centralmaneger.camera.camera import Camera
 from centralmaneger.serial.communication import SerialCommunication
 from centralmaneger.serial.serial_reader import listen_serial
 from centralmaneger.serial.serial_write import write_serial
+from centralmaneger.camera.cameraApp import capture_latest_frame, save_images
+from centralmaneger.camera.camera import Camera
 
 # Serial port settings
 SERIAL_PORT = "/dev/ttyACM0"
@@ -12,16 +16,21 @@ BAUDRATE = 9600
 # Thread management
 stop_event = threading.Event()
 
-# **Separate queues for received and sent data**
+# Separate queues for received and sent data
 read_queue = queue.Queue()   # Queue for received data
 write_queue = queue.Queue()  # Queue for data to be sent
 
+# Queues for camera
+frame_queue = queue.Queue(maxsize=1)
+image_queue = queue.Queue()
+
 def main():
     """
-    Main thread: Manages serial listening and writing threads, 
-    allows user input to be sent, and displays received data.
+    Main thread: Manages serial listening, writing, and camera processing threads,
+    allows user input to be sent via serial, and displays received data.
     """
     serial_comm = SerialCommunication(SERIAL_PORT, BAUDRATE)
+    camera = Camera(camera_id=0, capture_interval=1)
 
     # Start the listening thread
     listen_thread = threading.Thread(target=listen_serial, args=(stop_event, serial_comm, read_queue), daemon=True)
@@ -31,23 +40,30 @@ def main():
     write_thread = threading.Thread(target=write_serial, args=(stop_event, serial_comm, write_queue), daemon=True)
     write_thread.start()
 
-    print("[INFO] Serial communication started. Please enter data.")
+    # Start the camera processing threads
+    capture_thread = threading.Thread(target=capture_latest_frame, args=(camera, frame_queue, stop_event), daemon=True)
+    capture_thread.start()
+    
+    save_thread = threading.Thread(target=save_images, args=(stop_event, frame_queue, image_queue, camera), daemon=True)
+    save_thread.start()
+
+    print("[INFO] Serial communication and camera started. Please enter data.")
     print("[INFO] Type 'q' or 'quit' to exit.")
 
     try:
         while True:
-            # **Get user input**
+            # Get user input
             user_input = input("> ").strip()
 
-            # **Exit system if "q" or "quit" is entered**
+            # Exit system if "q" or "quit" is entered
             if user_input.lower() in ["q", "quit"]:
                 print("[INFO] Stopping the system...")
                 break
 
-            # **Send user input via serial**
+            # Send user input via serial
             write_queue.put(user_input)
 
-            # **Display received data if available**
+            # Display received data if available
             try:
                 received_data = read_queue.get_nowait()
                 print(f"[MAIN] Received data: {received_data}")
@@ -57,13 +73,16 @@ def main():
     except KeyboardInterrupt:
         print("\n[INFO] Interrupted by user. Stopping the system...")
 
-    # **Stop the threads**
+    # Stop the threads
     stop_event.set()
 
-    # **Wait for threads to finish**
+    # Wait for threads to finish
     listen_thread.join()
     write_thread.join()
+    capture_thread.join()
+    save_thread.join()
     serial_comm.close()
+    camera.release()
 
     print("[INFO] System shut down successfully.")
 
