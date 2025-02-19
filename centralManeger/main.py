@@ -25,10 +25,47 @@ frame_queue = queue.Queue(maxsize=1)
 image_queue = queue.Queue()
 label_queue = queue.Queue(maxsize=1)  # Queue to store the latest received data
 
+def handle_received_data(stop_event: threading.Event, read_queue: queue.Queue, label_queue: queue.Queue) -> None:
+    """
+    Thread function to process received serial data and update label queue.
+    """
+    latest_received_data = "unknown"
+    while not stop_event.is_set():
+        try:
+            received_data = read_queue.get(timeout=0.1)
+            latest_received_data = received_data  # Update latest received data
+            
+            if not label_queue.empty():
+                label_queue.get()  # Clear old label
+            label_queue.put(latest_received_data)
+            print(f"[RECEIVER] Received data: {received_data}")
+        except queue.Empty:
+            pass  # No new data, continue loop
+
+def user_input_listener(stop_event: threading.Event, write_queue: queue.Queue) -> None:
+    """
+    Thread function to handle user input separately from received data processing.
+    """
+    print("[INFO] Serial communication and camera started. Please enter data.")
+    print("[INFO] Type 'q' or 'quit' to exit.")
+    
+    try:
+        while not stop_event.is_set():
+            user_input = input("> ").strip()
+            
+            if user_input.lower() in ["q", "quit"]:
+                print("[INFO] Stopping the system...")
+                stop_event.set()
+                break
+            
+            write_queue.put(user_input)
+    except KeyboardInterrupt:
+        print("\n[INFO] Interrupted by user. Stopping the system...")
+        stop_event.set()
+
 def main():
     """
-    Main thread: Manages serial listening, writing, and camera processing threads,
-    allows user input to be sent via serial, and displays received data.
+    Main function to manage serial listening, writing, camera processing, and user input handling.
     """
     serial_comm = SerialCommunication(SERIAL_PORT, BAUDRATE)
     camera = Camera(camera_id=0, capture_interval=1)
@@ -48,45 +85,22 @@ def main():
     save_thread = threading.Thread(target=save_images, args=(stop_event, frame_queue, image_queue, camera, label_queue), daemon=True)
     save_thread.start()
 
-    print("[INFO] Serial communication and camera started. Please enter data.")
-    print("[INFO] Type 'q' or 'quit' to exit.")
+    # Start received data processing thread
+    receiver_thread = threading.Thread(target=handle_received_data, args=(stop_event, read_queue, label_queue), daemon=True)
+    receiver_thread.start()
 
-    try:
-        latest_received_data = "unknown"
-        while True:
-            # Get user input
-            user_input = input("> ").strip()
-
-            # Exit system if "q" or "quit" is entered
-            if user_input.lower() in ["q", "quit"]:
-                print("[INFO] Stopping the system...")
-                break
-
-            # Send user input via serial
-            write_queue.put(user_input)
-
-            # Display received data if available
-            try:
-                received_data = read_queue.get_nowait()
-                latest_received_data = received_data  # Update latest received data
-                if not label_queue.empty():
-                    label_queue.get()  # Clear old label
-                label_queue.put(latest_received_data)
-                print(f"[MAIN] Received data: {received_data}")
-            except queue.Empty:
-                pass  # Skip if no data is available
-
-    except KeyboardInterrupt:
-        print("\n[INFO] Interrupted by user. Stopping the system...")
-
-    # Stop the threads
-    stop_event.set()
-
+    # Start user input listener thread
+    input_thread = threading.Thread(target=user_input_listener, args=(stop_event, write_queue), daemon=True)
+    input_thread.start()
+    
     # Wait for threads to finish
+    input_thread.join()
+    stop_event.set()
     listen_thread.join()
     write_thread.join()
     capture_thread.join()
     save_thread.join()
+    receiver_thread.join()
     serial_comm.close()
     camera.release()
 
