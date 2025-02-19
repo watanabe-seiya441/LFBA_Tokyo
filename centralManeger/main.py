@@ -5,62 +5,67 @@ from centralmaneger.serial.communication import SerialCommunication
 from centralmaneger.serial.serial_reader import listen_serial
 from centralmaneger.serial.serial_write import write_serial
 
-# シリアルポート設定
+# Serial port settings
 SERIAL_PORT = "/dev/ttyACM0"
 BAUDRATE = 9600
 
-# スレッド管理用
+# Thread management
 stop_event = threading.Event()
 
-# **受信データと送信データのキューを独立**
-read_queue = queue.Queue()   # リッスンデータの格納
-write_queue = queue.Queue()  # 送信データの格納
+# **Separate queues for received and sent data**
+read_queue = queue.Queue()   # Queue for received data
+write_queue = queue.Queue()  # Queue for data to be sent
 
 def main():
     """
-    メインスレッド: シリアルリッスン・シリアルライトのスレッドを管理し、受信データを処理
+    Main thread: Manages serial listening and writing threads, 
+    allows user input to be sent, and displays received data.
     """
     serial_comm = SerialCommunication(SERIAL_PORT, BAUDRATE)
 
-    # リッスンスレッド開始
-    listen_thread = threading.Thread(target=listen_serial, args=(stop_event, serial_comm, read_queue))
+    # Start the listening thread
+    listen_thread = threading.Thread(target=listen_serial, args=(stop_event, serial_comm, read_queue), daemon=True)
     listen_thread.start()
 
-    # ライトスレッド開始
-    write_thread = threading.Thread(target=write_serial, args=(stop_event, serial_comm, write_queue))
+    # Start the writing thread
+    write_thread = threading.Thread(target=write_serial, args=(stop_event, serial_comm, write_queue), daemon=True)
     write_thread.start()
 
-    # メインスレッドで受信データを処理
-    try:
-        for _ in range(20):  # 10秒間ループ（1回 0.5 秒 x 20回）
-            time.sleep(0.5)
-            try:
-                received_data = read_queue.get_nowait()  # **受信データを取得**
-                print(f"[MAIN] Processing received data: {received_data}")
+    print("[INFO] Serial communication started. Please enter data.")
+    print("[INFO] Type 'q' or 'quit' to exit.")
 
-                # **受信データに応じたレスポンスを送信**
-                if received_data == "S123456":
-                    write_queue.put("ACK123456")
-                elif received_data == "S765432":
-                    write_queue.put("ACK765432")
-                else:
-                    write_queue.put("UNKNOWN")
-                
+    try:
+        while True:
+            # **Get user input**
+            user_input = input("> ").strip()
+
+            # **Exit system if "q" or "quit" is entered**
+            if user_input.lower() in ["q", "quit"]:
+                print("[INFO] Stopping the system...")
+                break
+
+            # **Send user input via serial**
+            write_queue.put(user_input)
+
+            # **Display received data if available**
+            try:
+                received_data = read_queue.get_nowait()
+                print(f"[MAIN] Received data: {received_data}")
             except queue.Empty:
-                pass  # 受信データがない場合はスキップ
+                pass  # Skip if no data is available
 
     except KeyboardInterrupt:
-        print("[INFO] Program interrupted by user.")
+        print("\n[INFO] Interrupted by user. Stopping the system...")
 
-    # 10秒後にスレッドを停止
+    # **Stop the threads**
     stop_event.set()
 
-    # スレッドの終了を待機
+    # **Wait for threads to finish**
     listen_thread.join()
     write_thread.join()
     serial_comm.close()
 
-    print("[INFO] Main program stopped.")
+    print("[INFO] System shut down successfully.")
 
 if __name__ == "__main__":
     main()

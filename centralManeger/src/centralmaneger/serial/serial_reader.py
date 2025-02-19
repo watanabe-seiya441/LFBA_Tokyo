@@ -1,4 +1,3 @@
-# centralManeger/src/centralmaneger/serial/serial_reader.py
 from centralmaneger.serial.communication import SerialCommunication
 import re
 import threading
@@ -6,12 +5,12 @@ import queue
 
 def listen_serial(stop_event: threading.Event, serial_communication: SerialCommunication, read_queue: queue.Queue) -> None:
     """
-    シリアルポートからデータを読み取り、read_queue に格納する。
+    Reads data from the serial port and stores it in the read_queue.
 
     Args:
-        stop_event (threading.Event): スレッドの停止フラグ
-        serial_communication (SerialCommunication): シリアル通信オブジェクト
-        read_queue (queue.Queue): 受信データを格納するキュー
+        stop_event (threading.Event): Event flag to stop the thread
+        serial_communication (SerialCommunication): Serial communication object
+        read_queue (queue.Queue): Queue to store received data
     """
     try:
         while not stop_event.is_set():
@@ -19,7 +18,7 @@ def listen_serial(stop_event: threading.Event, serial_communication: SerialCommu
             pattern = r"^S\d{6}$"
             if data and re.match(pattern, data):
                 print(f"[READ] Received data: {data}")
-                read_queue.put(data)  # **受信データを read_queue に格納**
+                read_queue.put(data)  # **Store received data in read_queue**
     except StopIteration:
         print("[ERROR] Serial listener stopped due to StopIteration.")
 
