@@ -21,46 +21,35 @@ def capture_latest_frame(camera, frame_queue, stop_event):
                 frame_queue.get()  # Remove the old frame
             frame_queue.put(frame)
 
-def run_camera_app(stop_event, camera, image_queue):
+def save_images(stop_event, frame_queue, image_queue):
     """
-    Runs the camera application in a separate thread.
+    Saves images from the latest frame queue at a 1-second interval.
 
     Args:
         stop_event (threading.Event): Event flag to stop the thread.
-        camera (Camera): An instance of the Camera class.
+        frame_queue (queue.Queue): Queue to fetch the latest frame.
         image_queue (queue.Queue): Queue to store captured image filenames.
     """
-    frame_queue = queue.Queue(maxsize=1)  # Store only the latest frame
-    frame_thread = threading.Thread(target=capture_latest_frame, args=(camera, frame_queue, stop_event), daemon=True)
-    frame_thread.start()
-
     while not stop_event.is_set():
         start_time = time.time()
 
         if frame_queue.empty():
+            time.sleep(0.1)
             continue  # Skip if no frame is available
 
         frame = frame_queue.get()
-        cv2.imshow("Camera", frame)
 
         # Save the image every 1 second
         timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
         filename = f"{timestamp}.jpg"
-        camera.save_image(filename, frame)
+        cv2.imwrite(filename, frame)
         image_queue.put(filename)
+        print(f"[INFO] Image saved: {filename}")
 
-        # Wait until 1 second has passed
+        # Ensure the next capture happens after 1 second
         elapsed_time = time.time() - start_time
-        sleep_time = max(0, camera.capture_interval - elapsed_time)
+        sleep_time = max(0, 1 - elapsed_time)
         time.sleep(sleep_time)
-
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            stop_event.set()
-            break
-
-    camera.release()
-    print("[INFO] Camera thread stopped gracefully.")
 
 def main():
     """
@@ -68,25 +57,37 @@ def main():
     """
     camera = Camera(camera_id=0, capture_interval=1)
     stop_event = threading.Event()
+    frame_queue = queue.Queue(maxsize=1)
     image_queue = queue.Queue()
 
-    # Start camera thread
-    camera_thread = threading.Thread(target=run_camera_app, args=(stop_event, camera, image_queue), daemon=True)
-    camera_thread.start()
+    # Start frame capture thread
+    capture_thread = threading.Thread(target=capture_latest_frame, args=(camera, frame_queue, stop_event), daemon=True)
+    capture_thread.start()
+
+    # Start image saving thread
+    save_thread = threading.Thread(target=save_images, args=(stop_event, frame_queue, image_queue), daemon=True)
+    save_thread.start()
 
     try:
         while not stop_event.is_set():
+            if not frame_queue.empty():
+                frame = frame_queue.get()
+                cv2.imshow("Camera", frame)
+
             key = cv2.waitKey(1) & 0xFF  # Wait for key input
             if key == ord('q'):
                 print("[INFO] Stopping the camera...")
-                stop_event.set()  # Signal the camera thread to stop
+                stop_event.set()  # Signal the threads to stop
                 break
+
             time.sleep(0.1)  # Prevent high CPU usage
 
     finally:
-        camera_thread.join()  # Ensure the camera thread has stopped
+        capture_thread.join()  # Ensure the capture thread has stopped
+        save_thread.join()  # Ensure the saving thread has stopped
         camera.release()
         print("[INFO] Camera application exited cleanly.")
+        cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     main()
