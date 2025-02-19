@@ -20,7 +20,7 @@ def capture_latest_frame(camera: Camera, frame_queue: queue.Queue, stop_event: t
                 frame_queue.get()  # Remove the old frame
             frame_queue.put(frame)
 
-def save_images(stop_event: threading.Event, frame_queue: queue.Queue, image_queue: queue.Queue, camera: Camera, name_queue: queue.Queue) -> None:
+def save_images(stop_event: threading.Event, frame_queue: queue.Queue, image_queue: queue.Queue, camera: Camera, label_queue: queue.Queue) -> None:
     """
     Saves images from the latest frame queue at a 1-second interval, including received data in the filename.
 
@@ -43,12 +43,12 @@ def save_images(stop_event: threading.Event, frame_queue: queue.Queue, image_que
         frame = frame_queue.get()
 
         # Get the latest received data if available
-        if not name_queue.empty():
-            latest_received_data = name_queue.get()
+        if not label_queue.empty():
+            latest_received_data = label_queue.get()
 
         # Save the image with received data in the filename
         timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
-        filename = f"{timestamp}_{latest_received_data}.jpg"
+        filename = f"image/{timestamp}_{latest_received_data}.jpg"
         camera.save_image(filename, frame)
         image_queue.put(filename)
         print(f"[INFO] Image saved: {filename}")
