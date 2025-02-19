@@ -23,7 +23,7 @@ write_queue = queue.Queue()  # Queue for data to be sent
 # Queues for camera
 frame_queue = queue.Queue(maxsize=1)
 image_queue = queue.Queue()
-name_queue = queue.Queue(maxsize=1)  # Queue to store the latest received data
+label_queue = queue.Queue(maxsize=1)  # Queue to store the latest received data
 
 def main():
     """
@@ -45,7 +45,7 @@ def main():
     capture_thread = threading.Thread(target=capture_latest_frame, args=(camera, frame_queue, stop_event), daemon=True)
     capture_thread.start()
     
-    save_thread = threading.Thread(target=save_images, args=(stop_event, frame_queue, image_queue, camera, name_queue), daemon=True)
+    save_thread = threading.Thread(target=save_images, args=(stop_event, frame_queue, image_queue, camera, label_queue), daemon=True)
     save_thread.start()
 
     print("[INFO] Serial communication and camera started. Please enter data.")
@@ -69,9 +69,9 @@ def main():
             try:
                 received_data = read_queue.get_nowait()
                 latest_received_data = received_data  # Update latest received data
-                if not name_queue.empty():
-                    name_queue.get()  # Clear old name
-                name_queue.put(latest_received_data)
+                if not label_queue.empty():
+                    label_queue.get()  # Clear old label
+                label_queue.put(latest_received_data)
                 print(f"[MAIN] Received data: {received_data}")
             except queue.Empty:
                 pass  # Skip if no data is available
