@@ -41,7 +41,9 @@ void loop() {
         String received = Serial.readStringUntil('\n');
         if (is_auto && received.startsWith("C") && received.length() == 6) {
             for (int i = 0; i < 4; i++) {
-                state = (state & ~(1 << i)) | ((received[i + 1] - '0') << i);
+                if (received[i + 1] == '0' || received[i + 1] == '1') {
+                    state = (state & ~(1 << i)) | ((received[i + 1] - '0') << i);
+                }
             }
             sendNotification('S');
         }
