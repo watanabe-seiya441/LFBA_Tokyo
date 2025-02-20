@@ -1,13 +1,13 @@
 import threading
 import queue
 import time
+import logging
 from datetime import datetime
 from centralmaneger.camera.camera import Camera
 from centralmaneger.serial.communication import SerialCommunication
 from centralmaneger.serial.serial_reader import listen_serial
 from centralmaneger.serial.serial_write import write_serial
 from centralmaneger.camera.cameraApp import capture_latest_frame, save_images
-from centralmaneger.camera.camera import Camera
 
 # Serial port settings
 SERIAL_PORT = "/dev/ttyACM0"
@@ -25,6 +25,18 @@ frame_queue = queue.Queue(maxsize=1)
 image_queue = queue.Queue()
 label_queue = queue.Queue(maxsize=1)  # Queue to store the latest received data
 
+start_time = datetime.now().strftime("%Y%m%dT%H%M%S")
+
+# Logging setup
+log_filename = f"log/system_{start_time}.log"
+logging.basicConfig(
+    filename=log_filename, 
+    level=logging.INFO, 
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+logger = logging.getLogger(__name__)
+
 def handle_received_data(stop_event: threading.Event, read_queue: queue.Queue, label_queue: queue.Queue) -> None:
     """
     Thread function to process received serial data and update label queue.
@@ -38,7 +50,7 @@ def handle_received_data(stop_event: threading.Event, read_queue: queue.Queue, l
             if not label_queue.empty():
                 label_queue.get()  # Clear old label
             label_queue.put(latest_received_data)
-            print(f"[RECEIVER] Received data: {received_data}")
+            logger.info(f"[RECEIVER] Received data: {received_data}")
         except queue.Empty:
             pass  # No new data, continue loop
 
@@ -60,14 +72,13 @@ def user_input_listener(stop_event: threading.Event, write_queue: queue.Queue) -
             
             write_queue.put(user_input)
     except KeyboardInterrupt:
-        print("\n[INFO] Interrupted by user. Stopping the system...")
+        logger.warning("[INFO] Interrupted by user. Stopping the system...")
         stop_event.set()
 
 def main():
     """
     Main function to manage serial listening, writing, camera processing, and user input handling.
     """
-    start_time = datetime.now().strftime("%Y%m%dT%H%M%S")
     print(f"[INFO] System started at {start_time}")
 
     serial_comm = SerialCommunication(SERIAL_PORT, BAUDRATE)
