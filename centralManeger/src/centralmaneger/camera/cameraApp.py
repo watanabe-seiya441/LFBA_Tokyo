@@ -35,7 +35,7 @@ def save_images(stop_event: threading.Event, frame_queue: queue.Queue, image_que
     latest_received_data = "unknown"  # Default name if no data received
 
     while not stop_event.is_set():
-        start_time = time.time()
+        current_time = time.time()
 
         if frame_queue.empty():
             time.sleep(0.1)
@@ -59,6 +59,6 @@ def save_images(stop_event: threading.Event, frame_queue: queue.Queue, image_que
         print(f"[INFO] Image saved: {filename}")
 
         # Ensure the next capture happens after 1 second
-        elapsed_time = time.time() - start_time
+        elapsed_time = time.time() - current_time
         sleep_time = max(0, 1 - elapsed_time)
         time.sleep(sleep_time)
