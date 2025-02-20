@@ -1,6 +1,10 @@
 import threading
-from centralmaneger.serial.communication import SerialCommunication
 import queue
+import logging
+from centralmaneger.serial.communication import SerialCommunication
+
+# Logging setup
+logger = logging.getLogger(__name__)
 
 def write_serial(stop_event: threading.Event, serial_communication: SerialCommunication, write_queue: queue.Queue) -> None:
     """
@@ -16,11 +20,11 @@ def write_serial(stop_event: threading.Event, serial_communication: SerialCommun
             try:
                 command = write_queue.get(timeout=1)  # **Retrieve data from the queue**
                 serial_communication.write_serial(f"C{command}")  # **Send data via serial**
-                print(f"[WRITE] Sent data: C{command}")
+                logger.info(f"[WRITE] Sent data: C{command}")
                 write_queue.task_done()
             except queue.Empty:
                 pass  # Skip if the queue is empty
     except Exception as e:
-        print(f"[ERROR] Serial writer error: {e}")
+        logger.exception(f"[ERROR] Serial writer encountered an error: {e}")
 
-    print("[INFO] Serial writer stopped.")
+    logger.info("[INFO] Serial writer stopped gracefully.")

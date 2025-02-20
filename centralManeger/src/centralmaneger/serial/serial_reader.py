@@ -2,6 +2,10 @@ from centralmaneger.serial.communication import SerialCommunication
 import re
 import threading
 import queue
+import logging
+
+# Logging setup
+logger = logging.getLogger(__name__)
 
 def listen_serial(stop_event: threading.Event, serial_communication: SerialCommunication, read_queue: queue.Queue) -> None:
     """
@@ -17,9 +21,11 @@ def listen_serial(stop_event: threading.Event, serial_communication: SerialCommu
             data = serial_communication.read_serial()
             pattern = r"^S\d{6}$"
             if data and re.match(pattern, data):
-                print(f"[READ] Received data: {data}")
+                logger.info(f"[READ] Received data: {data}")
                 read_queue.put(data)  # **Store received data in read_queue**
     except StopIteration:
-        print("[ERROR] Serial listener stopped due to StopIteration.")
+        logger.error("[ERROR] Serial listener stopped due to StopIteration.")
+    except Exception as e:
+        logger.exception(f"[ERROR] Exception in listen_serial: {e}")
 
-    print("[INFO] Serial listener stopped gracefully.")
+    logger.info("[INFO] Serial listener stopped gracefully.")
