@@ -53,7 +53,7 @@ def handle_received_data(stop_event: threading.Event, read_queue: queue.Queue, l
             if not label_queue.empty():
                 label_queue.get()  # Clear old label
             label_queue.put(latest_received_data)
-            logger.info(f"[RECEIVER] Received data: {received_data}")
+            
         except queue.Empty:
             pass  # No new data, continue loop
 
