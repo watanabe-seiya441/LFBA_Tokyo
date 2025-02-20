@@ -25,7 +25,7 @@ class Camera:
     def save_image(self, filename, frame):
         """Saves the captured frame as an image file."""
         cv2.imwrite(filename, frame)
-        print(f"Image saved: {filename}")
+        # print(f"Image saved: {filename}")
 
     def release(self):
         """Releases the camera resource."""
