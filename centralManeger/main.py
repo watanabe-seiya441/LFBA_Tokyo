@@ -2,6 +2,7 @@ import threading
 import queue
 import time
 import logging
+import os
 from datetime import datetime
 from centralmaneger.camera.camera import Camera
 from centralmaneger.serial.communication import SerialCommunication
@@ -28,7 +29,9 @@ label_queue = queue.Queue(maxsize=1)  # Queue to store the latest received data
 start_time = datetime.now().strftime("%Y%m%dT%H%M%S")
 
 # Logging setup
-log_filename = f"log/system_{start_time}.log"
+log_dir = "log"
+os.makedirs(log_dir, exist_ok=True) 
+log_filename = f"{log_dir}/system_{start_time}.log"
 logging.basicConfig(
     filename=log_filename, 
     level=logging.INFO, 
