@@ -1,6 +1,7 @@
 import time
 import threading
 import queue
+import os
 from datetime import datetime
 from centralmaneger.camera.camera import Camera
 
@@ -20,7 +21,7 @@ def capture_latest_frame(camera: Camera, frame_queue: queue.Queue, stop_event: t
                 frame_queue.get()  # Remove the old frame
             frame_queue.put(frame)
 
-def save_images(stop_event: threading.Event, frame_queue: queue.Queue, image_queue: queue.Queue, camera: Camera, label_queue: queue.Queue) -> None:
+def save_images(stop_event: threading.Event, frame_queue: queue.Queue, image_queue: queue.Queue, camera: Camera, label_queue: queue.Queue, start_time: str) -> None:
     """
     Saves images from the latest frame queue at a 1-second interval, including received data in the filename.
 
@@ -50,7 +51,9 @@ def save_images(stop_event: threading.Event, frame_queue: queue.Queue, image_que
 
         # Save the image with received data in the filename
         timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
-        filename = f"image/{timestamp}_{latest_received_data}.jpg"
+        dir_path = f"image/{start_time}"
+        os.makedirs(dir_path, exist_ok=True)
+        filename = f"{dir_path}/{timestamp}_{latest_received_data}.jpg"
         camera.save_image(filename, frame)
         image_queue.put(filename)
         print(f"[INFO] Image saved: {filename}")

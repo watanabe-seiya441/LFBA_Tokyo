@@ -67,6 +67,9 @@ def main():
     """
     Main function to manage serial listening, writing, camera processing, and user input handling.
     """
+    start_time = datetime.now().strftime("%Y%m%dT%H%M%S")
+    print(f"[INFO] System started at {starttime}")
+
     serial_comm = SerialCommunication(SERIAL_PORT, BAUDRATE)
     camera = Camera(camera_id=0, capture_interval=1)
 
@@ -82,7 +85,7 @@ def main():
     capture_thread = threading.Thread(target=capture_latest_frame, args=(camera, frame_queue, stop_event), daemon=True)
     capture_thread.start()
     
-    save_thread = threading.Thread(target=save_images, args=(stop_event, frame_queue, image_queue, camera, label_queue), daemon=True)
+    save_thread = threading.Thread(target=save_images, args=(stop_event, frame_queue, image_queue, camera, label_queue, start_time), daemon=True)
     save_thread.start()
 
     # Start received data processing thread
