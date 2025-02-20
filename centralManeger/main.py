@@ -68,7 +68,7 @@ def main():
     Main function to manage serial listening, writing, camera processing, and user input handling.
     """
     start_time = datetime.now().strftime("%Y%m%dT%H%M%S")
-    print(f"[INFO] System started at {starttime}")
+    print(f"[INFO] System started at {start_time}")
 
     serial_comm = SerialCommunication(SERIAL_PORT, BAUDRATE)
     camera = Camera(camera_id=0, capture_interval=1)
