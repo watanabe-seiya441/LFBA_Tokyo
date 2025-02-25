@@ -3,7 +3,6 @@ import threading
 import queue
 import os
 import logging
-import cv2
 from datetime import datetime
 from centralmaneger.camera.camera import Camera
 
@@ -27,50 +26,55 @@ def capture_latest_frame(camera: Camera, frame_queue: queue.Queue, stop_event: t
             frame_queue.put(frame)
         logger.debug("[CAPTURE] Frame captured.")
 
-def save_images(stop_event: threading.Event, frame_queue: queue.Queue, image_queue: queue.Queue, 
-                camera: Camera, label_queue: queue.Queue, start_time: str) -> None:
-    """
-    Saves images from the latest frame queue at a 1-second interval, including received data in the filename.
+def should_save_image(current_time: float, last_label_update_time: float, label: str, mode_train: threading.Event) -> bool:
+    """Determine if an image should be saved based on time constraints and training mode."""
+    return (
+        last_label_update_time 
+        and 15 <= (current_time - last_label_update_time) <= 180 
+        and label != "unknown" 
+        and mode_train.is_set()
+    )
 
-    Args:
-        stop_event (threading.Event): Event flag to stop the thread.
-        frame_queue (queue.Queue): Queue to fetch the latest frame.
-        image_queue (queue.Queue): Queue to store captured image filenames.
-        camera (Camera): An instance of the Camera class to handle image saving.
-        label_queue (queue.Queue): Queue to store the latest received data for filename.
-        start_time (str): The timestamp when the system started, used for directory naming.
-    """
-    latest_received_data = "unknown"  # Default name if no data received
-    last_update_time = None
+def save_image(camera, frame, start_time, label, image_queue):
+    """Save an image with the appropriate filename and store it in the image queue."""
+    timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+    dir_path = f"image/{start_time}"
+    os.makedirs(dir_path, exist_ok=True)
+    filename = f"{dir_path}/{timestamp}_{label}.jpg"
+    
+    camera.save_image(filename, frame)
+    image_queue.put(filename)
+    logger.info(f"[SAVE] Image saved: {filename}")
+
+def save_images(
+    stop_event: threading.Event, mode_train: threading.Event, 
+    frame_queue: queue.Queue, image_queue: queue.Queue, 
+    camera, label_queue: queue.Queue, start_time: str
+) -> None:
+    """Saves images at a 1-second interval based on training mode and label updates."""
+    
+    latest_label = "unknown"
+    last_label_update_time = None
 
     while not stop_event.is_set():
         current_time = time.time()
 
         if frame_queue.empty():
             time.sleep(0.1)
-            continue  # Skip if no frame is available
+            continue
 
         frame = frame_queue.get()
 
-        # Attempt to get latest received data
+        # Get the latest label if available
         try:
-            latest_received_data = label_queue.get_nowait()
-            last_update_time = time.time()
+            latest_label = label_queue.get_nowait()
+            last_label_update_time = time.time()
         except queue.Empty:
-            pass  # Keep previous value if no new data
+            pass  
 
-        # Save the image with received data in the filename
-        if last_update_time and 15 <= (current_time - last_update_time) <= 180 and latest_received_data != "unknown":
-            timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
-            dir_path = f"image/{start_time}"
-            os.makedirs(dir_path, exist_ok=True)
-            filename = f"{dir_path}/{timestamp}_{latest_received_data}.jpg"
-            camera.save_image(filename, frame)
-            image_queue.put(filename)
+        # Save the image if conditions are met
+        if should_save_image(current_time, last_label_update_time, latest_label, mode_train):
+            save_image(camera, frame, start_time, latest_label, image_queue)
 
-            logger.info(f"[SAVE] Image saved: {filename}")
-
-        # Ensure the next capture happens after 1 second
-        elapsed_time = time.time() - current_time
-        sleep_time = max(0, 1 - elapsed_time)
-        time.sleep(sleep_time)
+        # Ensure a 1-second interval between captures
+        time.sleep(max(0, 1 - (time.time() - current_time)))
