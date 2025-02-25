@@ -48,12 +48,11 @@ def handle_received_data(stop_event: threading.Event, read_queue: queue.Queue, l
     while not stop_event.is_set():
         try:
             received_data = read_queue.get(timeout=0.1)
-            latest_received_data = received_data[1:5]  # Update latest received data
-            
+            latest_received_data = received_data[1:5] 
             if not label_queue.empty():
                 label_queue.get()  # Clear old label
-            label_queue.put(latest_received_data)
-            
+            if latest_received_data[6] == '0': # If it is currently in manual mode
+                label_queue.put(latest_received_data)
         except queue.Empty:
             pass  # No new data, continue loop
 
