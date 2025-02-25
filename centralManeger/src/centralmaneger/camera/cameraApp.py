@@ -40,6 +40,7 @@ def save_images(stop_event: threading.Event, frame_queue: queue.Queue, image_que
         start_time (str): The timestamp when the system started, used for directory naming.
     """
     latest_received_data = "unknown"  # Default name if no data received
+    last_update_time = None
 
     while not stop_event.is_set():
         current_time = time.time()
@@ -53,18 +54,20 @@ def save_images(stop_event: threading.Event, frame_queue: queue.Queue, image_que
         # Attempt to get latest received data
         try:
             latest_received_data = label_queue.get_nowait()
+            last_update_time = time.time()
         except queue.Empty:
             pass  # Keep previous value if no new data
 
         # Save the image with received data in the filename
-        timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
-        dir_path = f"image/{start_time}"
-        os.makedirs(dir_path, exist_ok=True)
-        filename = f"{dir_path}/{timestamp}_{latest_received_data}.jpg"
-        camera.save_image(filename, frame)
-        image_queue.put(filename)
+        if last_update_time and 15 <= (current_time - last_update_time) <= 180 and latest_received_data != "unknown":
+            timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+            dir_path = f"image/{start_time}"
+            os.makedirs(dir_path, exist_ok=True)
+            filename = f"{dir_path}/{timestamp}_{latest_received_data}.jpg"
+            camera.save_image(filename, frame)
+            image_queue.put(filename)
 
-        logger.info(f"[SAVE] Image saved: {filename}")
+            logger.info(f"[SAVE] Image saved: {filename}")
 
         # Ensure the next capture happens after 1 second
         elapsed_time = time.time() - current_time
