@@ -1,4 +1,8 @@
-# Poetry Environment Setup Guide
+# Central Maneger
+The Central Manager is the core PC of the LFBA system, responsible for receiving image inputs from cameras, training and inference of the model, and outputting control signals to the infrastructure.  
+You can build using Poetry.
+
+## Install
 Install Poetry using the official installer:
 ```sh
 $ curl -sSL https://install.python-poetry.org | python3 -
@@ -46,3 +50,26 @@ Fix the virtual environment by specifying the correct Python version:
 $ poetry env use python3.12
 ```
 Then, verify again that the virtual environment is correctly configured and using the expected Python version.
+
+Next, we will install the necessary libraries.  
+Please run the following command.
+```sh
+$ poetry install
+```
+
+## How to use
+To start the system, follow these steps:
+
+Ensure that your camera and switch are connected to this PC.  
+Run the following command:
+```sh
+cd centralManager/
+poetry run python main.py
+```
+To stop the system, enter `q` or `quit` in the terminal.
+
+The log directory contains log files.
+If any issues occur, please check the logs for details.
+
+The image directory stores captured images.
+Images are taken only when the system is in train mode, and they are captured 15 to 180 seconds after a switch input change.
