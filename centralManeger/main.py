@@ -16,6 +16,7 @@ BAUDRATE = 9600
 
 # Thread management
 stop_event = threading.Event()
+mode_train = threading.Event()
 
 # Separate queues for received and sent data
 read_queue = queue.Queue()   # Queue for received data
@@ -40,7 +41,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def handle_received_data(stop_event: threading.Event, read_queue: queue.Queue, label_queue: queue.Queue) -> None:
+def handle_received_data(stop_event: threading.Event, mode_train: threading.Event, read_queue: queue.Queue, label_queue: queue.Queue) -> None:
     """
     Thread function to process received serial data and update label queue.
     """
@@ -48,11 +49,15 @@ def handle_received_data(stop_event: threading.Event, read_queue: queue.Queue, l
     while not stop_event.is_set():
         try:
             received_data = read_queue.get(timeout=0.1)
-            latest_received_data = received_data[1:5] 
+            if received_data[5] == "train":
+                mode_train.set()
+            else:
+                mode_train.clear()
+
+            latest_received_data = received_data[1:5] # Extract the label from the received data
             if not label_queue.empty():
                 label_queue.get()  # Clear old label
-            if received_data[5] == '0': # If it is currently in manual mode
-                label_queue.put(latest_received_data)
+            label_queue.put(latest_received_data)
         except queue.Empty:
             pass  # No new data, continue loop
 
@@ -98,7 +103,7 @@ def main():
     capture_thread = threading.Thread(target=capture_latest_frame, args=(camera, frame_queue, stop_event), daemon=True)
     capture_thread.start()
     
-    save_thread = threading.Thread(target=save_images, args=(stop_event, frame_queue, image_queue, camera, label_queue, start_time), daemon=True)
+    save_thread = threading.Thread(target=save_images, args=(stop_event, mode_train, frame_queue, image_queue, camera, label_queue, start_time), daemon=True)
     save_thread.start()
 
     # Start received data processing thread
