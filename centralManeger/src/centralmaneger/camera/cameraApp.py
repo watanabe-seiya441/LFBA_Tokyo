@@ -26,12 +26,6 @@ def capture_latest_frame(camera: Camera, frame_queue: queue.Queue, stop_event: t
                 frame_queue.get()  # Remove the old frame
             frame_queue.put(frame)
         logger.debug("[CAPTURE] Frame captured.")
-                # OpenCV で映像を表示
-        cv2.imshow("Camera Feed", frame)
-    
-    cv2.destroyAllWindows()
-    logger.info("[CLOSE] OpenCV window closed.")
-
 
 def save_images(stop_event: threading.Event, frame_queue: queue.Queue, image_queue: queue.Queue, 
                 camera: Camera, label_queue: queue.Queue, start_time: str) -> None:
