@@ -49,7 +49,7 @@ def handle_received_data(stop_event: threading.Event, mode_train: threading.Even
     while not stop_event.is_set():
         try:
             received_data = read_queue.get(timeout=0.1)
-            if received_data[5] == "train":
+            if received_data[5] == "0":
                 mode_train.set()
             else:
                 mode_train.clear()
