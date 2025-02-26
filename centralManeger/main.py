@@ -107,7 +107,7 @@ def main():
     save_thread.start()
 
     # Start received data processing thread
-    receiver_thread = threading.Thread(target=handle_received_data, args=(stop_event, read_queue, label_queue), daemon=True)
+    receiver_thread = threading.Thread(target=handle_received_data, args=(stop_event, mode_train, read_queue, label_queue), daemon=True)
     receiver_thread.start()
 
     # Start user input listener thread
