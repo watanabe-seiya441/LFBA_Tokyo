@@ -1,42 +1,89 @@
 #include <Arduino.h>
 
-const int ledPins[] = {2, 3, 4};
-const int relayPins[] = {6, 7, 8, 9};
-const int buttonPins[] = {A0, A1, A2, A3, 5};
-const int toggleSwitches[] = {A4, A5};
+// Pin configuration
+const int LED_PINS[] = {2, 3, 4};
+const int RELAY_PINS[] = {6, 7, 8, 9};
+const int BUTTON_PINS[] = {A0, A1, A2, A3, 5};
+const int TOGGLE_SWITCHES[] = {A4, A5};
 
+// Global state variable (bit-based)
 uint8_t state = 0;
+uint8_t prev_toggle_state = 0;
 
 void setup() {
     Serial.begin(9600);
-    for (int pin : ledPins) pinMode(pin, OUTPUT);
-    for (int pin : relayPins) pinMode(pin, OUTPUT);
-    for (int pin : buttonPins) pinMode(pin, INPUT_PULLUP);
-    for (int pin : toggleSwitches) pinMode(pin, INPUT_PULLUP);
+    initializePins();
 
-    // Initialize toggle switch states before sending notification
-    state |= (digitalRead(toggleSwitches[0]) << 5) | (digitalRead(toggleSwitches[1]) << 6);
+    // Initialize toggle switch state
+    prev_toggle_state = readToggleSwitches();
+    state |= prev_toggle_state;
 
     sendNotification('S');
 }
 
 void loop() {
-    // Handle button presses
     bool is_auto = state & (1 << 5);
+
     if (!is_auto) {
-        for (int i = 0; i < 5; i++) {
-            if (digitalRead(buttonPins[i]) == LOW) {
-                while (digitalRead(buttonPins[i]) == LOW); // Debounce
-                state ^= (1 << i);
-                sendNotification('S');
-            }
+        updateStateFromButtons();
+    }
+
+    if (updateStateFromSwitches()) {
+        sendNotification('S');
+    }
+
+    updateStateFromSerial(is_auto);
+    updateOutputs();
+
+    delay(100);
+}
+
+/**
+ * Initializes all necessary pin modes.
+ */
+void initializePins() {
+    for (int pin : LED_PINS) pinMode(pin, OUTPUT);
+    for (int pin : RELAY_PINS) pinMode(pin, OUTPUT);
+    for (int pin : BUTTON_PINS) pinMode(pin, INPUT_PULLUP);
+    for (int pin : TOGGLE_SWITCHES) pinMode(pin, INPUT_PULLUP);
+}
+
+/**
+ * Reads toggle switch states and returns the corresponding bitmask.
+ */
+uint8_t readToggleSwitches() {
+    return (digitalRead(TOGGLE_SWITCHES[0]) << 5) | (digitalRead(TOGGLE_SWITCHES[1]) << 6);
+}
+
+/**
+ * Handles button presses and updates the state.
+ */
+void updateStateFromButtons() {
+    for (int i = 0; i < 5; i++) {
+        if (debounce(BUTTON_PINS[i])) {
+            state ^= (1 << i);
+            sendNotification('S');
         }
     }
-    
-    // Update toggle switch states
-    state = (state & 0b00011111) | (digitalRead(toggleSwitches[0]) << 5) | (digitalRead(toggleSwitches[1]) << 6);
+}
 
-    // Handle serial input when in manual mode
+/**
+ * Handles toggle switch changes. Returns true if state changed.
+ */
+bool updateStateFromSwitches() {
+    uint8_t new_toggle_state = readToggleSwitches();
+    if (new_toggle_state != prev_toggle_state) {
+        state = (state & 0b00011111) | new_toggle_state;
+        prev_toggle_state = new_toggle_state;
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Reads serial input and updates the state if in auto mode.
+ */
+void updateStateFromSerial(bool is_auto) {
     if (Serial.available()) {
         String received = Serial.readStringUntil('\n');
         if (is_auto && received.startsWith("C") && received.length() == 6) {
@@ -48,19 +95,38 @@ void loop() {
             sendNotification('S');
         }
     }
-
-    // Control relay outputs
-    for (int i = 0; i < 4; i++) digitalWrite(relayPins[i], state & (1 << i));
-    
-    // Control LED indicators
-    digitalWrite(ledPins[0], state & (1 << 5));
-    digitalWrite(ledPins[1], state & (1 << 6));
-    digitalWrite(ledPins[2], !(state & (1 << 6)));
-
-    delay(100);
 }
 
-// Sends notification to Serial monitor
+/**
+ * Updates relays and LEDs based on the current state.
+ */
+void updateOutputs() {
+    for (int i = 0; i < 4; i++) {
+        digitalWrite(RELAY_PINS[i], state & (1 << i));
+    }
+
+    digitalWrite(LED_PINS[0], state & (1 << 5));
+    digitalWrite(LED_PINS[1], state & (1 << 6));
+    digitalWrite(LED_PINS[2], !(state & (1 << 6)));
+}
+
+/**
+ * Simple debounce function for button inputs.
+ */
+bool debounce(int pin) {
+    if (digitalRead(pin) == LOW) {
+        delay(50); // Debounce delay
+        if (digitalRead(pin) == LOW) {
+            while (digitalRead(pin) == LOW); // Wait until release
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Sends a notification to the serial monitor.
+ */
 void sendNotification(char type) {
     Serial.print(type);
     for (int i = 0; i < 4; i++) Serial.print((state & (1 << i)) ? "1" : "0");
