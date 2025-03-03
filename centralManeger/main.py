@@ -9,10 +9,14 @@ from centralmaneger.serial.communication import SerialCommunication
 from centralmaneger.serial.serial_reader import listen_serial
 from centralmaneger.serial.serial_write import write_serial
 from centralmaneger.camera.cameraApp import capture_latest_frame, save_images
+from centralmaneger.image_classification.classifier import process_images  # process_images を追加
 
 # Serial port settings
 SERIAL_PORT = "/dev/ttyACM0"
 BAUDRATE = 9600
+
+# classes
+classes = ["0000", "0001", "0010", "0011"]
 
 # Thread management
 stop_event = threading.Event()
@@ -90,6 +94,7 @@ def main():
 
     serial_comm = SerialCommunication(SERIAL_PORT, BAUDRATE)
     camera = Camera(camera_id=0, capture_interval=1)
+    model_path = "centralManeger/model/mobilenetv3_small_best_model.pth"
 
     # Start the listening thread
     listen_thread = threading.Thread(target=listen_serial, args=(stop_event, serial_comm, read_queue), daemon=True)
@@ -106,6 +111,10 @@ def main():
     save_thread = threading.Thread(target=save_images, args=(stop_event, mode_train, frame_queue, image_queue, camera, label_queue, start_time), daemon=True)
     save_thread.start()
 
+    # Start the image processing thread
+    image_classification_thread = threading.Thread(target=process_images, args=(stop_event, mode_train, frame_queue, write_queue, model_path, classes), daemon=True)
+    image_classification_thread.start()
+
     # Start received data processing thread
     receiver_thread = threading.Thread(target=handle_received_data, args=(stop_event, mode_train, read_queue, label_queue), daemon=True)
     receiver_thread.start()
@@ -121,6 +130,7 @@ def main():
     write_thread.join()
     capture_thread.join()
     save_thread.join()
+    image_classification_thread.join()
     receiver_thread.join()
     serial_comm.close()
     camera.release()
