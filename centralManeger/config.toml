@@ -4,5 +4,5 @@ baudrate = 9600
 
 [model]
 classes = ["0000", "0001", "0010", "0011"]
-# path = "model/mobilenetv3_small_best_model.pth"
-path = "model/vgg_best_model.pth"
+path = "model/mobilenetv3_small_best_model.pth"
+# path = "model/vgg_best_model.pth"

@@ -1,5 +1,6 @@
 import torch
 import torchvision.transforms as transforms
+from torchvision import models
 from PIL import Image
 import numpy as np
 import threading
@@ -13,25 +14,62 @@ logger = logging.getLogger(__name__)
 
 class ImageClassifier:
     """
-    画像分類を行うクラス。
-    指定されたモデルをロードし、画像の分類を行う。
+    A class for image classification.
+    Loads the specified model (MobileNetV3 or VGG) and performs classification.
     """
     def __init__(self, model_path):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # モデルのロード
+        # Load checkpoint
         checkpoint = torch.load(model_path, map_location=self.device)
-        if isinstance(checkpoint, torch.nn.Module):
-            self.model = checkpoint
+
+        # Determine model type
+        if "arch" in checkpoint:
+            model_arch = checkpoint["arch"]
+        elif "features.0.0.weight" in checkpoint:
+            model_arch = "mobilenet"
+        elif "classifier.0.weight" in checkpoint:
+            model_arch = "vgg"
         else:
-            from torchvision import models
-            self.model = models.mobilenet_v3_small(num_classes=4)  # 必要に応じて変更
-            self.model.load_state_dict(checkpoint)
+            raise ValueError("Unknown model architecture in checkpoint.")
+
+        self.model_type = model_arch.lower()
+
+        # Load correct model
+        if self.model_type == "mobilenet":
+            self.model = models.mobilenet_v3_small(num_classes=4)
+        elif self.model_type == "vgg":
+            self.model = models.vgg16(num_classes=4)
+        else:
+            raise ValueError("Unsupported model type. Use 'mobilenet' or 'vgg'.")
+
+        # Extract state_dict
+        if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+            state_dict = checkpoint["state_dict"]
+        elif isinstance(checkpoint, dict):
+            state_dict = checkpoint
+        elif isinstance(checkpoint, torch.nn.Module):
+            self.model = checkpoint.to(self.device)
+            self.model.eval()
+            return
+        else:
+            raise ValueError("Invalid checkpoint format")
+
+        # Adjust key names if necessary
+        model_keys = set(self.model.state_dict().keys())
+        checkpoint_keys = set(state_dict.keys())
+
+        if model_keys != checkpoint_keys:
+            print("[WARNING] Model and checkpoint keys do not match. Adjusting keys...")
+            new_state_dict = {k.replace("module.", ""): v for k, v in state_dict.items() if k.replace("module.", "") in model_keys}
+            self.model.load_state_dict(new_state_dict, strict=False)
+        else:
+            self.model.load_state_dict(state_dict)
 
         self.model.to(self.device)
         self.model.eval()
-        
-        # 画像の前処理設定
+
+        # Image preprocessing
         self.transform = transforms.Compose([
             transforms.Resize((224, 224)),
             transforms.ToTensor(),
