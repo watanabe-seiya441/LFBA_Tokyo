@@ -73,6 +73,7 @@ def process_images(stop_event: threading.Event, mode_train: threading.Event,
 
     while not stop_event.is_set():
         if mode_train.is_set():
+            previous_prediction = None
             continue  # 訓練モード時は処理をスキップ
         
         image_data = frame_queue.get()
