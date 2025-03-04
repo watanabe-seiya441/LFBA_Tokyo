@@ -2,3 +2,5 @@
 *.pyc
 *.jpg
 *.log
+*.zip
+*.pth
