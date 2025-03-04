@@ -18,9 +18,13 @@ BAUDRATE = 9600
 # classes
 classes = ["0000", "0001", "0010", "0011"]
 
+# model_path
+model_path = "model/mobilenetv3_small_best_model.pth"
+
 # Thread management
 stop_event = threading.Event()
 mode_train = threading.Event()
+mode_train.set()
 
 # Separate queues for received and sent data
 read_queue = queue.Queue()   # Queue for received data
@@ -94,7 +98,6 @@ def main():
 
     serial_comm = SerialCommunication(SERIAL_PORT, BAUDRATE)
     camera = Camera(camera_id=0, capture_interval=1)
-    model_path = "centralManeger/model/mobilenetv3_small_best_model.pth"
 
     # Start the listening thread
     listen_thread = threading.Thread(target=listen_serial, args=(stop_event, serial_comm, read_queue), daemon=True)
