@@ -4,5 +4,19 @@ baudrate = 9600
 
 [model]
 classes = ["0000", "0001", "0010", "0011"]
-path = "model/mobilenetv3_small_best_model.pth"
+path = "model/mobilenetv3_small_latest.pth"
 # path = "model/vgg_best_model.pth"
+
+[hyperparameters]
+# num_classes = 4        # クラス数（例: 4クラス分類）
+batch_size = 32
+epochs = 1
+img_size = 224
+learning_rate = 0.001
+
+[directory]
+data_dir = 'dataset'    
+result_dir = 'model'
+
+[gpu]
+gpu_index = 1

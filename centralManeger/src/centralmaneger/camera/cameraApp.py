@@ -38,7 +38,8 @@ def should_save_image(current_time: float, last_label_update_time: float, label:
 def save_image(camera, frame, start_time, label, image_queue):
     """Save an image with the appropriate filename and store it in the image queue."""
     timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
-    dir_path = f"image/{start_time}"
+    # dir_path = f"image/{start_time}"
+    dir_path = "image/recorded"
     os.makedirs(dir_path, exist_ok=True)
     filename = f"{dir_path}/{timestamp}_{label}.jpg"
     
