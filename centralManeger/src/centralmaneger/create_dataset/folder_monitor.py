@@ -89,15 +89,23 @@ def create_dataset():
 def monitor_folder(stop_event: threading.Event, start_train: queue.Queue) -> None:
     """
     Monitors the specified folder and creates a dataset if the file count exceeds the threshold.
-    This function runs in a single loop, handling both monitoring and dataset creation.
+    This function runs in a continuous loop, but checks file count only every CHECK_INTERVAL seconds.
     """
+    last_check_time = 0  # Store the last file count check time
+
     while not stop_event.is_set():
-        file_count = count_files(WATCH_DIR)
-        logger.info(f"[INFO] Current file count: {file_count}")
+        current_time = time.time()
 
-        if file_count >= THRESHOLD:
-            logger.warning(f"[WARNING] ⚠️ File count exceeded threshold ({THRESHOLD}): {file_count} files")
-            create_dataset()  # Create dataset immediately
-            start_train.put("start")
+        # Check file count only if CHECK_INTERVAL has passed
+        if current_time - last_check_time >= CHECK_INTERVAL:
+            file_count = count_files(WATCH_DIR)
+            logger.info(f"[INFO] Current file count: {file_count}")
 
-        time.sleep(CHECK_INTERVAL)  # Wait before next check
+            if file_count >= THRESHOLD:
+                logger.warning(f"[WARNING] ⚠️ File count exceeded threshold ({THRESHOLD}): {file_count} files")
+                create_dataset()  # Create dataset immediately
+                start_train.put("start")
+
+            last_check_time = current_time  # Update last check time
+
+        # Do not sleep, allowing while-loop to be responsive
