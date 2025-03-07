@@ -14,6 +14,7 @@ from centralmaneger.serial.serial_reader import listen_serial
 from centralmaneger.serial.serial_write import write_serial
 from centralmaneger.camera.cameraApp import capture_latest_frame, save_images
 from centralmaneger.image_classification.classifier import process_images
+from centralmaneger.create_dataset.folder_monitor import monitor_folder  # monitor_folder を追加
 
 print("[INFO] All packages loaded successfully.")
 
@@ -25,6 +26,7 @@ SERIAL_PORT = config["serial"]["port"]
 BAUDRATE = config["serial"]["baudrate"]
 CLASSES = config["model"]["classes"]
 MODEL_PATH = config["model"]["path"]
+WATCH_DIR = "image/recorded"  # Folder to monitor
 
 # Thread management events
 stop_event = threading.Event()
@@ -37,6 +39,7 @@ write_queue = queue.Queue()
 frame_queue = queue.Queue(maxsize=1)
 image_queue = queue.Queue()
 label_queue = queue.Queue(maxsize=1)
+start_train = queue.Queue()  # monitor_folder からのシグナルを受け取るキュー
 
 # Logging setup
 log_dir = "log"
@@ -65,6 +68,16 @@ def handle_received_data():
         except queue.Empty:
             continue
 
+def monitor_data_threshold():
+    """ Monitor the file count threshold signal and stop training if exceeded """
+    while not stop_event.is_set():
+        try:
+            signal = start_train.get(timeout=1)  # Wait for signal from monitor_folder
+            if signal == "threshold_exceeded":
+                print("[WARNING] File threshold exceeded.")
+        except queue.Empty:
+            continue
+
 def user_input_listener():
     """ Thread function to handle user input """
     print("[INFO] Enter commands to interact with serial communication.")
@@ -86,6 +99,8 @@ def start_threads(serial_comm, camera):
         threading.Thread(target=save_images, args=(stop_event, mode_train, frame_queue, image_queue, camera, label_queue, start_time), daemon=True),
         threading.Thread(target=process_images, args=(stop_event, mode_train, frame_queue, write_queue, MODEL_PATH, CLASSES), daemon=True),
         threading.Thread(target=handle_received_data, daemon=True),
+        threading.Thread(target=monitor_folder, args=(stop_event, start_train), daemon=True),  # Add folder monitor thread
+        threading.Thread(target=monitor_data_threshold, daemon=True),  # Monitor folder signal
         threading.Thread(target=user_input_listener, daemon=True)
     ]
     
