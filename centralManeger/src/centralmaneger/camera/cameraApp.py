@@ -9,7 +9,7 @@ from centralmaneger.camera.camera import Camera
 # Logging setup (グローバルな logger を定義)
 logger = logging.getLogger(__name__)
 
-def capture_latest_frame(camera: Camera, frame_queue: queue.Queue, stop_event: threading.Event) -> None:
+def capture_latest_frame(camera: Camera, frame_queue: queue.Queue, stop_event: threading.Event, mode_record: threading.Event) -> None:
     """
     Continuously captures the latest frame from the camera and updates the frame queue.
 
@@ -19,6 +19,9 @@ def capture_latest_frame(camera: Camera, frame_queue: queue.Queue, stop_event: t
         stop_event (threading.Event): Event flag to stop the thread.
     """
     while not stop_event.is_set():
+        if not mode_record.is_set():
+            continue
+            
         frame = camera.capture_frame()
         if frame is not None:
             if not frame_queue.empty():
