@@ -32,6 +32,7 @@ WATCH_DIR = "image/recorded"  # Folder to monitor
 # Thread management events
 stop_event = threading.Event()
 mode_train = threading.Event()
+mode_record = threading.Event()
 mode_train.set()
 
 # Queue definitions
@@ -41,7 +42,7 @@ frame_queue = queue.Queue(maxsize=1)
 image_queue = queue.Queue()
 label_queue = queue.Queue(maxsize=1)
 start_train = queue.Queue() 
-start_train.put("start")
+# start_train.put("start")
 
 # Logging setup
 log_dir = "log"
@@ -62,6 +63,7 @@ def handle_received_data():
         try:
             received_data = read_queue.get(timeout=0.1)
             mode_train.set() if received_data[5] == "0" else mode_train.clear()
+            mode_record.set() if received_data[6] == "1" else mode_record.clear()
             
             latest_label = received_data[1:5]
             if not label_queue.empty():
@@ -87,7 +89,7 @@ def start_threads(serial_comm, camera):
     threads = [
         threading.Thread(target=listen_serial, args=(stop_event, serial_comm, read_queue), daemon=True),
         threading.Thread(target=write_serial, args=(stop_event, serial_comm, write_queue), daemon=True),
-        threading.Thread(target=capture_latest_frame, args=(camera, frame_queue, stop_event), daemon=True),
+        threading.Thread(target=capture_latest_frame, args=(camera, frame_queue, stop_event, mode_record), daemon=True),
         threading.Thread(target=save_images, args=(stop_event, mode_train, frame_queue, image_queue, camera, label_queue, start_time), daemon=True),
         threading.Thread(target=process_images, args=(stop_event, mode_train, frame_queue, write_queue, MODEL_PATH, CLASSES), daemon=True),
         threading.Thread(target=handle_received_data, daemon=True),
