@@ -9,14 +9,6 @@ import random
 # Logging setup
 logger = logging.getLogger(__name__)
 
-# Configuration
-WATCH_DIR = "image/recorded"  # Directory to monitor
-THRESHOLD = 10000  # File count threshold
-CHECK_INTERVAL = 60  # Monitoring interval in seconds
-output_folder = "dataset"  # Destination folder
-train_folder = os.path.join(output_folder, "train")
-val_folder = os.path.join(output_folder, "val")
-
 def count_files(directory: str) -> int:
     """
     Counts the number of files in the specified directory.
@@ -33,7 +25,7 @@ def count_files(directory: str) -> int:
         logger.error(f"[ERROR] Failed to read directory: {e}")
         return 0
 
-def create_dataset():
+def create_dataset(WATCH_DIR: str, dataset_dir: str):
     """
     Processes images from WATCH_DIR and organizes them into a dataset.
     Moves only a portion of images at a time to avoid infinite loops.
@@ -44,6 +36,8 @@ def create_dataset():
     random.seed(57)
 
     label_dict = {}
+    train_folder = os.path.join(output_folder, "train")
+    val_folder = os.path.join(output_folder, "val")
 
     # Process only a limited number of images from WATCH_DIR
     all_files = [f for f in os.listdir(WATCH_DIR) if f.endswith(".jpg")]
@@ -86,7 +80,7 @@ def create_dataset():
 
     logger.info("[INFO] Dataset creation completed successfully.")
 
-def monitor_folder(stop_event: threading.Event, start_train: queue.Queue) -> None:
+def monitor_folder(stop_event: threading.Event, start_train: queue.Queue, WATCH_DIR: str, dataset_dir: str, THRESHOLD: int, CHECK_INTERVAL: int) -> None:
     """
     Monitors the specified folder and creates a dataset if the file count exceeds the threshold.
     This function runs in a continuous loop, but checks file count only every CHECK_INTERVAL seconds.
@@ -103,7 +97,7 @@ def monitor_folder(stop_event: threading.Event, start_train: queue.Queue) -> Non
 
             if file_count >= THRESHOLD:
                 logger.warning(f"[WARNING] ⚠️ File count exceeded threshold ({THRESHOLD}): {file_count} files")
-                create_dataset()  # Create dataset immediately
+                create_dataset(dataset_dir)  # Create dataset immediately
                 start_train.put("start")
 
             last_check_time = current_time  # Update last check time

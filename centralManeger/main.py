@@ -35,6 +35,8 @@ dataset_dir = config["directory"]["dataset_dir"]
 model_dir = config["directory"]["model_dir"]
 gpu = config["gpu"]["gpu_index"]
 WATCH_DIR = config["directory"]["image_dir"]  # Folder to monitor
+THRESHOLD = config["monitoring"]["THRESHOLD"]  # File count threshold
+CHECK_INTERVAL = config["monitoring"]["CHECK_INTERVAL"]
 
 # Thread management events
 stop_event = threading.Event()
@@ -49,7 +51,7 @@ frame_queue = queue.Queue(maxsize=1)
 image_queue = queue.Queue()
 label_queue = queue.Queue(maxsize=1)
 start_train = queue.Queue() 
-start_train.put("start")
+# start_train.put("start")
 
 # Logging setup
 log_dir = "log"
@@ -100,7 +102,7 @@ def start_threads(serial_comm, camera):
         threading.Thread(target=save_images, args=(stop_event, mode_train, frame_queue, image_queue, camera, label_queue, start_time), daemon=True),
         threading.Thread(target=process_images, args=(stop_event, mode_train, frame_queue, write_queue, MODEL_PATH, CLASSES), daemon=True),
         threading.Thread(target=handle_received_data, daemon=True),
-        threading.Thread(target=monitor_folder, args=(stop_event, start_train), daemon=True),  # Add folder monitor thread
+        threading.Thread(target=monitor_folder, args=(stop_event, start_train, WATCH_DIR, dataset_dir, THRESHOLD, CHECK_INTERVAL), daemon=True),  # Add folder monitor thread
         threading.Thread(target=train_controller, args=(stop_event, start_train, batch_size, epochs, img_size, learning_rate, dataset_dir, model_dir, gpu), daemon=True), 
         threading.Thread(target=user_input_listener, daemon=True)
     ]
