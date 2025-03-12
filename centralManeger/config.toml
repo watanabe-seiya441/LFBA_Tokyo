@@ -19,5 +19,9 @@ classes = ["0000", "0001", "0010", "0011"]
 path = "model/mobilenetv3_small_latest.pth"
 # path = "model/vgg_best_model.pth"
 
+[monitoring]
+THRESHOLD = 10000  # File count threshold
+CHECK_INTERVAL = 60
+
 [gpu]
 gpu_index = 1
