@@ -27,7 +27,14 @@ SERIAL_PORT = config["serial"]["port"]
 BAUDRATE = config["serial"]["baudrate"]
 CLASSES = config["model"]["classes"]
 MODEL_PATH = config["model"]["path"]
-WATCH_DIR = "image/recorded"  # Folder to monitor
+batch_size = config["hyperparameters"]["batch_size"]
+epochs = config["hyperparameters"]["epochs"]
+img_size = config["hyperparameters"]["img_size"]
+learning_rate = config["hyperparameters"]["learning_rate"]
+dataset_dir = config["directory"]["dataset_dir"]
+model_dir = config["directory"]["model_dir"]
+gpu = config["gpu"]["gpu_index"]
+WATCH_DIR = config["directory"]["image_dir"]  # Folder to monitor
 
 # Thread management events
 stop_event = threading.Event()
@@ -42,7 +49,7 @@ frame_queue = queue.Queue(maxsize=1)
 image_queue = queue.Queue()
 label_queue = queue.Queue(maxsize=1)
 start_train = queue.Queue() 
-# start_train.put("start")
+start_train.put("start")
 
 # Logging setup
 log_dir = "log"
@@ -94,7 +101,7 @@ def start_threads(serial_comm, camera):
         threading.Thread(target=process_images, args=(stop_event, mode_train, frame_queue, write_queue, MODEL_PATH, CLASSES), daemon=True),
         threading.Thread(target=handle_received_data, daemon=True),
         threading.Thread(target=monitor_folder, args=(stop_event, start_train), daemon=True),  # Add folder monitor thread
-        threading.Thread(target=train_controller, args=(stop_event, start_train), daemon=True), 
+        threading.Thread(target=train_controller, args=(stop_event, start_train, batch_size, epochs, img_size, learning_rate, dataset_dir, model_dir, gpu), daemon=True), 
         threading.Thread(target=user_input_listener, daemon=True)
     ]
     

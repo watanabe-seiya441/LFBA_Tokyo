@@ -32,15 +32,6 @@ def set_seed(seed=57):
     torch.backends.cudnn.benchmark = False
 
 # -------------------------
-# Load configuration from config.toml
-def load_config(config_path="config.toml"):
-    """
-    Loads configuration settings from config.toml.
-    """
-    with open(config_path, "rb") as f:
-        return tomllib.load(f)
-
-# -------------------------
 # Prepare dataset & get number of classes
 def prepare_data(data_dir, img_size, batch_size):
     """
@@ -205,7 +196,7 @@ def train_model(model, dataloaders, image_datasets, device, model_path, learning
 
 # -------------------------
 # Train Controller Thread
-def train_controller(stop_event: threading.Event, start_train: queue.Queue):
+def train_controller(stop_event: threading.Event, start_train: queue.Queue, batch_size: int, epochs: int, img_size: int, learning_rate: int, data_dir: str, result_dir: str, gpu: int):
     """
     Watches for training start signals and runs training when triggered.
     Training will be stopped immediately if stop_event is set.
@@ -214,16 +205,7 @@ def train_controller(stop_event: threading.Event, start_train: queue.Queue):
         stop_event (threading.Event): Event to stop training.
         start_train (queue.Queue): Queue receiving "start" signals.
     """
-    config = load_config()
     set_seed()
-
-    batch_size = config["hyperparameters"]["batch_size"]
-    epochs = config["hyperparameters"]["epochs"]
-    img_size = config["hyperparameters"]["img_size"]
-    learning_rate = config["hyperparameters"]["learning_rate"]
-    data_dir = config["directory"]["data_dir"]
-    result_dir = config["directory"]["result_dir"]
-    gpu = config["gpu"]["gpu_index"]
 
     device = torch.device(f"cuda:{gpu}" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
