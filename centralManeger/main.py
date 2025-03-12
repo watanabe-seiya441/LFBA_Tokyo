@@ -26,7 +26,7 @@ with open("config.toml", "rb") as config_file:
 SERIAL_PORT = config["serial"]["port"]
 BAUDRATE = config["serial"]["baudrate"]
 CLASSES = config["model"]["classes"]
-MODEL_PATH = config["model"]["path"]
+MODEL_NAME = config["model"]["name"]
 batch_size = config["hyperparameters"]["batch_size"]
 epochs = config["hyperparameters"]["epochs"]
 img_size = config["hyperparameters"]["img_size"]
@@ -37,6 +37,8 @@ gpu = config["gpu"]["gpu_index"]
 WATCH_DIR = config["directory"]["image_dir"]  # Folder to monitor
 THRESHOLD = config["monitoring"]["THRESHOLD"]  # File count threshold
 CHECK_INTERVAL = config["monitoring"]["CHECK_INTERVAL"]
+
+model_path = os.path.join(model_dir, MODEL_NAME)
 
 # Thread management events
 stop_event = threading.Event()
@@ -100,7 +102,7 @@ def start_threads(serial_comm, camera):
         threading.Thread(target=write_serial, args=(stop_event, serial_comm, write_queue), daemon=True),
         threading.Thread(target=capture_latest_frame, args=(camera, frame_queue, stop_event, mode_record), daemon=True),
         threading.Thread(target=save_images, args=(stop_event, mode_train, frame_queue, image_queue, camera, label_queue, start_time), daemon=True),
-        threading.Thread(target=process_images, args=(stop_event, mode_train, frame_queue, write_queue, MODEL_PATH, CLASSES), daemon=True),
+        threading.Thread(target=process_images, args=(stop_event, mode_train, frame_queue, write_queue, model_path, CLASSES), daemon=True),
         threading.Thread(target=handle_received_data, daemon=True),
         threading.Thread(target=monitor_folder, args=(stop_event, start_train, WATCH_DIR, dataset_dir, THRESHOLD, CHECK_INTERVAL), daemon=True),  # Add folder monitor thread
         threading.Thread(target=train_controller, args=(stop_event, start_train, batch_size, epochs, img_size, learning_rate, dataset_dir, model_dir, gpu), daemon=True), 
