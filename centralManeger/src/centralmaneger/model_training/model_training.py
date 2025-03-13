@@ -84,19 +84,20 @@ def prepare_data(data_dir, img_size, batch_size):
         raise
 
 
-def initialize_model(num_classes, model_dir, device):
+def initialize_model(num_classes, model_dir, model_name, device):
     """Initializes the MobileNetV3-Small model and loads existing weights if available.
 
     Args:
         num_classes (int): Number of output classes.
         model_dir (str): Directory to save model.
+        model_name (str): model name.
         device (torch.device): Computation device.
 
     Returns:
         tuple: (model, model_path, is_finetune)
     """
     try:
-        model_path = os.path.join(model_dir, "mobilenetv3_small_latest.pth")
+        model_path = os.path.join(model_dir, model_name)
 
         model = models.mobilenet_v3_small(weights=None)
         model.classifier[3] = nn.Linear(model.classifier[3].in_features, num_classes)
@@ -185,7 +186,7 @@ def train_model(model, dataloaders, image_datasets, device, model_path, learning
 
 
 
-def train_controller(stop_event, start_train, batch_size, epochs, img_size, learning_rate, data_dir, model_dir, gpu):
+def train_controller(stop_event, start_train, batch_size, epochs, img_size, learning_rate, data_dir, model_dir, model_name, gpu):
     """Watches for training start signals and runs training when triggered.
 
     Args:
@@ -204,7 +205,7 @@ def train_controller(stop_event, start_train, batch_size, epochs, img_size, lear
         if task == "start":
             logger.info("[TRAIN] Training triggered.")
             dataloaders, image_datasets, num_classes = prepare_data(data_dir, img_size, batch_size)
-            model, model_path, is_finetune = initialize_model(num_classes, model_dir, device)
+            model, model_path, is_finetune = initialize_model(num_classes, model_dir, model_name, device)
 
             if is_finetune:
                 learning_rate *= 0.1

@@ -126,7 +126,7 @@ def start_threads(serial_comm, camera):
         threading.Thread(target=process_images, args=(stop_event, mode_train, frame_queue, write_queue, MODEL_PATH, CLASSES), daemon=True),
         threading.Thread(target=handle_received_data, daemon=True),
         threading.Thread(target=monitor_folder, args=(stop_event, start_train, WATCH_DIR, DATASET_DIR, THRESHOLD, CHECK_INTERVAL), daemon=True),
-        threading.Thread(target=train_controller, args=(stop_event, start_train, BATCH_SIZE, EPOCHS, IMG_SIZE, LEARNING_RATE, DATASET_DIR, MODEL_DIR, GPU), daemon=True),
+        threading.Thread(target=train_controller, args=(stop_event, start_train, BATCH_SIZE, EPOCHS, IMG_SIZE, LEARNING_RATE, DATASET_DIR, MODEL_DIR, MODEL_NAME, GPU), daemon=True),
         threading.Thread(target=user_input_listener, daemon=True)
     ]
     for thread in threads:
