@@ -96,16 +96,38 @@ def initialize_model(num_classes, model_dir, model_name, device):
     Returns:
         tuple: (model, model_path, is_finetune)
     """
+def initialize_model(num_classes, model_dir, model_name, device):
+    """Initializes the MobileNetV3-Small model and loads existing weights if available.
+
+    Args:
+        num_classes (int): Number of output classes.
+        model_dir (str): Directory to save model.
+        model_name (str): Model name.
+        device (torch.device): Computation device.
+
+    Returns:
+        tuple: (model, model_path, is_finetune)
+    """
     try:
         model_path = os.path.join(model_dir, model_name)
 
+        # Initialize the model with a random output layer
         model = models.mobilenet_v3_small(weights=None)
         model.classifier[3] = nn.Linear(model.classifier[3].in_features, num_classes)
         model = model.to(device)
 
         if os.path.exists(model_path):
             logger.info(f"[TRAIN] Loading existing model: {model_path}")
-            model.load_state_dict(torch.load(model_path, map_location=device))
+            # Load state dict and ignore mismatched keys (especially for the classifier layer)
+            state_dict = torch.load(model_path, map_location=device)
+
+            # Load parameters except for the classifier layer
+            filtered_state_dict = {k: v for k, v in state_dict.items() if not k.startswith('classifier.3')}
+            model.load_state_dict(filtered_state_dict, strict=False)
+
+            # Reinitialize the final classifier layer for new classes
+            model.classifier[3] = nn.Linear(model.classifier[3].in_features, num_classes).to(device)
+
             return model, model_path, True
         else:
             logger.info("[TRAIN] No existing model found. Starting new training.")
