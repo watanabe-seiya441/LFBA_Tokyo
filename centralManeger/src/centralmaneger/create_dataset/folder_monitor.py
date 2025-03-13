@@ -37,7 +37,7 @@ def create_dataset(watch_dir: str, dataset_dir: str, threshold: int) -> None:
         dataset_dir (str): Directory to store the processed dataset.
         threshold (int): Number of images to process in one batch.
     """
-    logger.info("[INFO] Dataset creation started.")
+    logger.info("[DATASET] Dataset creation started.")
     random.seed(57)
 
     label_dict = {}
@@ -47,7 +47,7 @@ def create_dataset(watch_dir: str, dataset_dir: str, threshold: int) -> None:
     all_files = [f for f in os.listdir(watch_dir) if f.endswith(".jpg")]
     num_files_to_process = min(len(all_files), threshold)
 
-    logger.info(f"[INFO] Processing {num_files_to_process} images.")
+    logger.info(f"[DATASET] Processing {num_files_to_process} images.")
 
     for filename in all_files[:num_files_to_process]:
         parts = filename.split("_")
@@ -73,7 +73,7 @@ def create_dataset(watch_dir: str, dataset_dir: str, threshold: int) -> None:
         for file in val_files:
             shutil.move(file, os.path.join(val_label_folder, os.path.basename(file)))
 
-    logger.info("[INFO] Dataset creation completed successfully.")
+    logger.info("[DATASET] Dataset creation completed successfully.")
 
 def monitor_folder(stop_event: threading.Event, start_train: queue.Queue, watch_dir: str, dataset_dir: str, threshold: int, check_interval: int) -> None:
     """
@@ -94,7 +94,7 @@ def monitor_folder(stop_event: threading.Event, start_train: queue.Queue, watch_
 
         if current_time - last_check_time >= check_interval:
             file_count = count_files(watch_dir)
-            logger.info(f"[INFO] Current file count: {file_count}")
+            logger.info(f"[MONITOR] Current file count: {file_count}")
 
             if file_count >= threshold:
                 logger.warning(f"[WARNING] ⚠️ File count exceeded threshold ({threshold}): {file_count} files")

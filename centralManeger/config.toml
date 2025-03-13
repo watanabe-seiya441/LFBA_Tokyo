@@ -9,8 +9,8 @@ model_dir = 'model'
 
 [model]
 classes = ["0000", "0001", "0010", "0011"]
-name = "mobilenetv3_small_latest.pth"
-path = "model/mobilenetv3_small_latest.pth"
+name = "mobilenetv3_small_latest2.pth"
+# path = "model/mobilenetv3_small_latest.pth"
 # path = "model/vgg_best_model.pth"
 
 [monitoring]
