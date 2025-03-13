@@ -154,8 +154,9 @@ def train_model(model, dataloaders, image_datasets, device, model_path, learning
                 model.train() if phase == 'train' else model.eval()
 
                 running_loss, running_corrects = 0.0, 0
+                total_batches = len(dataloaders[phase])
 
-                for inputs, labels in dataloaders[phase]:
+                for batch_idx, (inputs, labels) in enumerate(dataloaders[phase]):
                     if stop_event.is_set():
                         logger.warning("[STOP] Stop event detected! Saving model and terminating training.")
                         torch.save(model.state_dict(), model_path)
@@ -176,6 +177,9 @@ def train_model(model, dataloaders, image_datasets, device, model_path, learning
                     running_loss += loss.item() * inputs.size(0)
                     running_corrects += torch.sum(preds == labels.data)
 
+                    if batch_idx % 10 == 0:
+                        logger.info(f"[TRAIN] {phase} Epoch {epoch+1}/{epochs} - Batch {batch_idx}/{total_batches} - Loss: {loss.item():.4f}")
+
                 epoch_loss = running_loss / len(image_datasets[phase])
                 epoch_acc = running_corrects.double() / len(image_datasets[phase])
                 logger.info(f"[TRAIN] {phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}")
@@ -187,6 +191,7 @@ def train_model(model, dataloaders, image_datasets, device, model_path, learning
         logger.error(f"[Error] during training: {e}")
         torch.save(model.state_dict(), model_path)
         raise
+
 
 def train_controller(stop_event, start_train, batch_size, epochs, img_size, learning_rate, data_dir, model_dir, model_name, gpu, classes_queue, arch='mobilenet'):
     """Watches for training start signals and runs training when triggered.
@@ -206,3 +211,14 @@ def train_controller(stop_event, start_train, batch_size, epochs, img_size, lear
         task = start_train.get()
         if task == "start":
             logger.info("[TRAIN] Training triggered.")
+            dataloaders, image_datasets, num_classes = prepare_data(data_dir, img_size, batch_size, classes_queue)
+            model, model_path, is_finetune = initialize_model(num_classes, model_dir, model_name, device, arch)
+
+            if is_finetune:
+                learning_rate *= 0.1
+                logger.info("[TRAIN] Fine-tuning detected. Reducing learning rate.")
+
+            train_model(model, dataloaders, image_datasets, device, model_path, learning_rate, epochs, stop_event)
+
+            logger.info("[TRAIN] Training completed.")
+            start_train.task_done()
