@@ -163,7 +163,7 @@ def process_images(stop_event, mode_train, frame_queue, write_queue, model_path,
     while not stop_event.is_set():
         classifier, last_model_update = _check_and_reload_model(classifier, model_path, last_model_update)
         if not classifier:
-            _switch_to_train_mode_if_needed(mode_train)
+            # _switch_to_train_mode_if_needed(mode_train)
             continue
 
         if mode_train.is_set():
