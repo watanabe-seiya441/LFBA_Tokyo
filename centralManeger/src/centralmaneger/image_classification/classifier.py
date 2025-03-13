@@ -6,171 +6,253 @@ import numpy as np
 import threading
 import time
 import queue
-import sys
 import logging
 import os
 
-# ロギング設定
+# Configure logging
 logger = logging.getLogger(__name__)
 
 class ImageClassifier:
-    """
-    A class for image classification.
-    Loads the specified model (MobileNetV3 or VGG) and performs classification.
-    """
+    """Image classifier that dynamically loads a model and classifies images."""
+
     def __init__(self, model_path):
+        """
+        Initialize the classifier.
+
+        Args:
+            model_path (str): Path to the model checkpoint.
+        """
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-        # Load checkpoint
-        checkpoint = torch.load(model_path, map_location=self.device)
-
-        # Determine model type
-        if "arch" in checkpoint:
-            model_arch = checkpoint["arch"]
-        elif "features.0.0.weight" in checkpoint:
-            model_arch = "mobilenet"
-        elif "classifier.0.weight" in checkpoint:
-            model_arch = "vgg"
-        else:
-            raise ValueError("Unknown model architecture in checkpoint.")
-
-        self.model_type = model_arch.lower()
-
-        # Load correct model
-        if self.model_type == "mobilenet":
-            self.model = models.mobilenet_v3_small(num_classes=4)
-        elif self.model_type == "vgg":
-            self.model = models.vgg16(num_classes=4)
-        else:
-            raise ValueError("Unsupported model type. Use 'mobilenet' or 'vgg'.")
-
-        # Extract state_dict
-        if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
-            state_dict = checkpoint["state_dict"]
-        elif isinstance(checkpoint, dict):
-            state_dict = checkpoint
-        elif isinstance(checkpoint, torch.nn.Module):
-            self.model = checkpoint.to(self.device)
-            self.model.eval()
-            return
-        else:
-            raise ValueError("Invalid checkpoint format")
-
-        # Adjust key names if necessary
-        model_keys = set(self.model.state_dict().keys())
-        checkpoint_keys = set(state_dict.keys())
-
-        if model_keys != checkpoint_keys:
-            print("[WARNING] Model and checkpoint keys do not match. Adjusting keys...")
-            new_state_dict = {k.replace("module.", ""): v for k, v in state_dict.items() if k.replace("module.", "") in model_keys}
-            self.model.load_state_dict(new_state_dict, strict=False)
-        else:
-            self.model.load_state_dict(state_dict)
-
-        self.model.to(self.device)
-        self.model.eval()
-
-        # Image preprocessing
+        self.model = self._load_model(model_path)
         self.transform = transforms.Compose([
             transforms.Resize((224, 224)),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
-    
+
+    def _load_model(self, model_path):
+        """
+        Load the model from a checkpoint.
+
+        Args:
+            model_path (str): Path to the model checkpoint.
+
+        Returns:
+            torch.nn.Module: Loaded model.
+        """
+        checkpoint = torch.load(model_path, map_location=self.device)
+        model_arch = checkpoint.get("arch", self._infer_arch(checkpoint))
+        num_classes = checkpoint.get("num_classes", self._infer_num_classes(checkpoint, model_arch))
+        
+        model = self._initialize_model(model_arch, num_classes)
+        state_dict = self._adjust_state_dict_keys(checkpoint.get("state_dict", checkpoint), model)
+        model.load_state_dict(state_dict, strict=False)
+        model.to(self.device).eval()
+        return model
+
+    def _infer_arch(self, checkpoint):
+        """
+        Infer the architecture from the checkpoint.
+
+        Args:
+            checkpoint (dict): Loaded checkpoint dictionary.
+
+        Returns:
+            str: Model architecture name.
+        """
+        if "features.0.0.weight" in checkpoint:
+            return "mobilenet"
+        if "classifier.0.weight" in checkpoint:
+            return "vgg"
+        raise ValueError("Unknown model architecture in checkpoint.")
+
+    def _infer_num_classes(self, checkpoint, model_arch):
+        """
+        Infer the number of classes from the checkpoint.
+
+        Args:
+            checkpoint (dict): Loaded checkpoint dictionary.
+            model_arch (str): Model architecture name.
+
+        Returns:
+            int: Number of output classes.
+        """
+        state_dict = checkpoint.get("state_dict", checkpoint)
+        try:
+            return state_dict[f"classifier.{3 if model_arch == 'mobilenet' else 6}.weight"].shape[0]
+        except KeyError as e:
+            raise ValueError(f"Could not infer num_classes from checkpoint. Missing key: {e}")
+
+    def _initialize_model(self, model_arch, num_classes):
+        """
+        Initialize the model architecture.
+
+        Args:
+            model_arch (str): Architecture name.
+            num_classes (int): Number of output classes.
+
+        Returns:
+            torch.nn.Module: Initialized model.
+        """
+        if model_arch == "mobilenet":
+            return models.mobilenet_v3_small(num_classes=num_classes)
+        if model_arch == "vgg":
+            return models.vgg16(num_classes=num_classes)
+        raise ValueError("Unsupported model type. Use 'mobilenet' or 'vgg'.")
+
+    def _adjust_state_dict_keys(self, state_dict, model):
+        """
+        Adjust state dictionary keys to match model keys.
+
+        Args:
+            state_dict (dict): State dictionary from the checkpoint.
+            model (torch.nn.Module): Model instance.
+
+        Returns:
+            dict: Adjusted state dictionary.
+        """
+        model_keys = set(model.state_dict().keys())
+        return {k.replace("module.", ""): v for k, v in state_dict.items() if k.replace("module.", "") in model_keys}
+
     def classify(self, image_data):
-        """ 画像を分類し、クラスインデックスを返す """
-        if isinstance(image_data, np.ndarray):
-            # OpenCVの画像データはBGRなので、RGBに変換
-            image = Image.fromarray(image_data[..., ::-1]).convert('RGB')
-        else:
-            image = Image.open(image_data).convert('RGB')
+        """
+        Classify an image and return the predicted class index.
 
-        image = self.transform(image).unsqueeze(0).to(self.device)
+        Args:
+            image_data (np.ndarray or str): Image data or path to the image.
 
+        Returns:
+            int: Predicted class index.
+        """
+        image = self._prepare_image(image_data)
         with torch.no_grad():
             output = self.model(image)
             _, predicted = torch.max(output, 1)
-
         return predicted.item()
 
-def predict_image(image_data, model_path):
-    """ 指定した画像の分類を行い、結果を返す """
-    classifier = ImageClassifier(model_path)
-    return classifier.classify(image_data)
+    def _prepare_image(self, image_data):
+        """
+        Prepare image data for classification.
 
-def process_images(stop_event: threading.Event, mode_train: threading.Event, 
-                   frame_queue: queue.Queue, write_queue: queue.Queue, model_path, classes: list):
-    """
-    Continuously classifies images in a separate thread.
-    - Skips classification if in training mode.
-    - Reloads the model automatically if the file is updated.
-    - Uses stabilization methods to prevent sending unstable predictions.
-    - Logs every prediction result.
-    """
-    classifier = ImageClassifier(model_path)
-    latest_frame = None
-    previous_prediction = None  # Stores previous prediction
-    consecutive_count = 0  # Count of consecutive identical predictions
+        Args:
+            image_data (np.ndarray or str): Image data or path to the image.
 
-    # Track the last modified timestamp of the model file
-    last_model_update = os.path.getmtime(model_path)
+        Returns:
+            torch.Tensor: Preprocessed image tensor.
+        """
+        if isinstance(image_data, np.ndarray):
+            image_data = Image.fromarray(image_data[..., ::-1])
+        return self.transform(image_data.convert('RGB')).unsqueeze(0).to(self.device)
+
+def process_images(stop_event, mode_train, frame_queue, write_queue, model_path, classes):
+    """
+    Process images in a background thread for classification.
+
+    Args:
+        stop_event (threading.Event): Event to signal stopping the process.
+        mode_train (threading.Event): Event indicating training mode.
+        frame_queue (queue.Queue): Queue to receive image frames.
+        write_queue (queue.Queue): Queue to send classification results.
+        model_path (str): Path to the model checkpoint.
+        classes (list): List of class names.
+    """
+    classifier, previous_prediction, consecutive_count = None, None, 0
+    last_model_update = None
+    current_state = None
 
     while not stop_event.is_set():
-        # Check if the model has been updated
-        current_model_update = os.path.getmtime(model_path)
-        if current_model_update > last_model_update:
-            logger.info(f"[INFO] Model update detected. Reloading model from {model_path}.")
-            classifier = ImageClassifier(model_path)  # Reload model
-            last_model_update = current_model_update  # Update timestamp
+        classifier, last_model_update = _check_and_reload_model(classifier, model_path, last_model_update)
+        if not classifier:
+            _switch_to_train_mode_if_needed(mode_train)
+            continue
 
         if mode_train.is_set():
-            previous_prediction = None
-            consecutive_count = 0
-            continue  # Skip processing in training mode
-        
+            previous_prediction, consecutive_count = None, 0
+            time.sleep(1)
+            continue
+
         image_data = frame_queue.get()
         if image_data is None:
-            continue  # Skip if frame is None
-        
-        # **🔥 Convert numpy.ndarray to PIL.Image**
-        if isinstance(image_data, np.ndarray):
-            image_data = Image.fromarray(image_data[..., ::-1])  # Convert BGR (OpenCV) to RGB
+            frame_queue.task_done()
+            continue
 
-        latest_frame = image_data  # Update latest frame
+        predicted_class, confidence = _classify_image(classifier, image_data)
+        if predicted_class is None or confidence is None:
+            logger.warning("[WARNING] Classification returned None. Skipping this frame.")
+            continue  # Skip to the next iteration
+        logger.debug(f"[DEBUG] Current prediction is {classes[predicted_class]}")
 
-        if latest_frame is not None:
-            with torch.no_grad():
-                transformed_image = classifier.transform(latest_frame).unsqueeze(0).to(classifier.device)
-                output = classifier.model(transformed_image)
-                probabilities = torch.nn.functional.softmax(output, dim=1)[0].cpu().numpy()
-                predicted_class = np.argmax(probabilities)
-
-            # **Sort probabilities & Get Top-2**
-            sorted_probs = np.sort(probabilities)[::-1]  # Sort descending
-            top_1, top_2 = sorted_probs[:2]
-
-            # **🔥 Log the current prediction result**
-            logger.info(f"[PREDICT] Current prediction: {classes[predicted_class]} (Confidence: {top_1:.2f})")
-
-            # **Skip if probabilities are too close (uncertain prediction)**
-            if abs(top_1 - top_2) < 0.1:
-                logger.info(f"[SKIP] Close probability detected: {classes[predicted_class]} (Top-1: {top_1:.2f}, Top-2: {top_2:.2f})")
-                continue
-
-            # **Count consecutive identical predictions**
-            if predicted_class == previous_prediction:
-                consecutive_count += 1
-            else:
-                consecutive_count = 1  # Reset if different
-
-            logger.info(f"[INFO] Consecutive count: {consecutive_count}")
-
-            # **Only send result if the same prediction appears 3 times consecutively**
-            if consecutive_count >= 3:
-                write_queue.put(classes[predicted_class])
-                logger.info(f"[PROCESS] Stable prediction confirmed: {classes[predicted_class]} (Confidence: {top_1:.2f})")
-                time.sleep(5)  # Avoid excessive predictions
-
-            previous_prediction = predicted_class  # Update previous prediction
-        
+        consecutive_count = consecutive_count + 1 if predicted_class == previous_prediction else 1
+        if consecutive_count >= 3 and current_state != classes[predicted_class]:
+            write_queue.put(classes[predicted_class])
+            logger.info(f"[PROCESS] Stable prediction confirmed: {classes[predicted_class]} (Confidence: {confidence:.2f})")
+            current_state = classes[predicted_class]
+            time.sleep(5)
+        previous_prediction = predicted_class
         frame_queue.task_done()
+
+def _check_and_reload_model(classifier, model_path, last_model_update):
+    """
+    Check for model updates and reload if necessary.
+
+    Args:
+        classifier (ImageClassifier): Current classifier instance.
+        model_path (str): Path to the model checkpoint.
+        last_model_update (float): Last model update timestamp.
+
+    Returns:
+        tuple: (Updated classifier, latest model update timestamp)
+    """
+    if os.path.exists(model_path):
+        current_update = os.path.getmtime(model_path)
+        if not classifier or current_update > (last_model_update or 0):
+            logger.info(f"[INFO] Model update detected. Reloading model from {model_path}.")
+            return ImageClassifier(model_path), current_update
+    return classifier, last_model_update
+
+def _switch_to_train_mode_if_needed(mode_train):
+    """
+    Switch to training mode if model is unavailable.
+
+    Args:
+        mode_train (threading.Event): Training mode event.
+    """
+    if not mode_train.is_set():
+        logger.info("[INFO] The model has not been generated yet. Switching to train mode.")
+        mode_train.set()
+    time.sleep(1)
+
+def _classify_image(classifier, image_data):
+    """
+    Classify an image and return the prediction and confidence.
+
+    Args:
+        classifier (ImageClassifier): Classifier instance.
+        image_data (np.ndarray or str): Image data.
+
+    Returns:
+        tuple: (Predicted class index, confidence score) or (None, None) if classification fails.
+    """
+    if image_data is None:
+        return None, None
+    
+    try:
+        with torch.no_grad():
+            transformed_image = classifier._prepare_image(image_data)
+            output = classifier.model(transformed_image)
+            probabilities = torch.nn.functional.softmax(output, dim=1)[0].cpu().numpy()
+            sorted_indices = np.argsort(probabilities)[::-1]
+            top_1_idx, top_2_idx = sorted_indices[:2]
+            top_1_confidence = probabilities[top_1_idx]
+            top_2_confidence = probabilities[top_2_idx]
+
+            # Skip if confidence difference is too small
+            if abs(top_1_confidence - top_2_confidence) < 0.1:
+                logger.warning(f"[SKIP] Confidence too close: Top-1={top_1_confidence:.2f}, Top-2={top_2_confidence:.2f}")
+                return None, None
+
+            return top_1_idx, top_1_confidence
+    except Exception as e:
+        logger.error(f"[ERROR] Classification failed: {e}")
+        return None, None
+

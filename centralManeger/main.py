@@ -14,7 +14,7 @@ from centralmaneger.serial.serial_reader import listen_serial
 from centralmaneger.serial.serial_write import write_serial
 from centralmaneger.camera.cameraApp import capture_latest_frame, save_images
 from centralmaneger.image_classification.classifier import process_images
-from centralmaneger.create_dataset.folder_monitor import monitor_folder  # monitor_folder を追加
+from centralmaneger.create_dataset.folder_monitor import monitor_folder
 from centralmaneger.model_training.model_training import train_controller
 
 print("[INFO] All packages loaded successfully.")
@@ -23,20 +23,23 @@ print("[INFO] All packages loaded successfully.")
 with open("config.toml", "rb") as config_file:
     config = tomllib.load(config_file)
 
+# Configuration parameters
 SERIAL_PORT = config["serial"]["port"]
 BAUDRATE = config["serial"]["baudrate"]
 CLASSES = config["model"]["classes"]
-MODEL_PATH = config["model"]["path"]
-batch_size = config["hyperparameters"]["batch_size"]
-epochs = config["hyperparameters"]["epochs"]
-img_size = config["hyperparameters"]["img_size"]
-learning_rate = config["hyperparameters"]["learning_rate"]
-dataset_dir = config["directory"]["dataset_dir"]
-model_dir = config["directory"]["model_dir"]
-gpu = config["gpu"]["gpu_index"]
-WATCH_DIR = config["directory"]["image_dir"]  # Folder to monitor
-THRESHOLD = config["monitoring"]["THRESHOLD"]  # File count threshold
+MODEL_NAME = config["model"]["name"]
+BATCH_SIZE = config["hyperparameters"]["batch_size"]
+EPOCHS = config["hyperparameters"]["epochs"]
+IMG_SIZE = config["hyperparameters"]["img_size"]
+LEARNING_RATE = config["hyperparameters"]["learning_rate"]
+DATASET_DIR = config["directory"]["dataset_dir"]
+MODEL_DIR = config["directory"]["model_dir"]
+GPU = config["gpu"]["gpu_index"]
+WATCH_DIR = config["directory"]["image_dir"]
+THRESHOLD = config["monitoring"]["THRESHOLD"]
 CHECK_INTERVAL = config["monitoring"]["CHECK_INTERVAL"]
+
+MODEL_PATH = os.path.join(MODEL_DIR, MODEL_NAME)
 
 # Thread management events
 stop_event = threading.Event()
@@ -50,7 +53,7 @@ write_queue = queue.Queue()
 frame_queue = queue.Queue(maxsize=1)
 image_queue = queue.Queue()
 label_queue = queue.Queue(maxsize=1)
-start_train = queue.Queue() 
+start_train = queue.Queue()
 # start_train.put("start")
 
 # Logging setup
@@ -67,7 +70,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def handle_received_data():
-    """ Thread function to process received serial data and update label queue """
+    """
+    Process received serial data and update label queue.
+
+    Receives data from the serial read queue and updates training and recording modes,
+    along with the latest label data.
+    """
     while not stop_event.is_set():
         try:
             received_data = read_queue.get(timeout=0.1)
@@ -82,7 +90,13 @@ def handle_received_data():
             continue
 
 def user_input_listener():
-    """ Thread function to handle user input """
+    """
+    Listen for user inputs to control the system.
+
+    Commands:
+        'q' or 'quit' - to exit the system.
+        Any other input is added to the serial write queue.
+    """
     print("[INFO] Enter commands to interact with serial communication.")
     print("[INFO] Type 'q' or 'quit' to exit.")
     while not stop_event.is_set():
@@ -94,7 +108,16 @@ def user_input_listener():
         write_queue.put(user_input)
 
 def start_threads(serial_comm, camera):
-    """ Start all necessary threads """
+    """
+    Initialize and start all necessary threads for the system.
+
+    Args:
+        serial_comm (SerialCommunication): Serial communication interface.
+        camera (Camera): Camera interface for capturing images.
+
+    Returns:
+        list: List of started thread objects.
+    """
     threads = [
         threading.Thread(target=listen_serial, args=(stop_event, serial_comm, read_queue), daemon=True),
         threading.Thread(target=write_serial, args=(stop_event, serial_comm, write_queue), daemon=True),
@@ -102,30 +125,29 @@ def start_threads(serial_comm, camera):
         threading.Thread(target=save_images, args=(stop_event, mode_train, frame_queue, image_queue, camera, label_queue, start_time), daemon=True),
         threading.Thread(target=process_images, args=(stop_event, mode_train, frame_queue, write_queue, MODEL_PATH, CLASSES), daemon=True),
         threading.Thread(target=handle_received_data, daemon=True),
-        threading.Thread(target=monitor_folder, args=(stop_event, start_train, WATCH_DIR, dataset_dir, THRESHOLD, CHECK_INTERVAL), daemon=True),  # Add folder monitor thread
-        threading.Thread(target=train_controller, args=(stop_event, start_train, batch_size, epochs, img_size, learning_rate, dataset_dir, model_dir, gpu), daemon=True), 
+        threading.Thread(target=monitor_folder, args=(stop_event, start_train, WATCH_DIR, DATASET_DIR, THRESHOLD, CHECK_INTERVAL), daemon=True),
+        threading.Thread(target=train_controller, args=(stop_event, start_train, BATCH_SIZE, EPOCHS, IMG_SIZE, LEARNING_RATE, DATASET_DIR, MODEL_DIR, GPU), daemon=True),
         threading.Thread(target=user_input_listener, daemon=True)
     ]
-    
     for thread in threads:
         thread.start()
     return threads
 
 def main():
-    """ Main function to manage the system """
+    """
+    Main function to initialize components and manage thread lifecycle.
+    """
     serial_comm = SerialCommunication(SERIAL_PORT, BAUDRATE)
     camera = Camera(camera_id=0, capture_interval=1)
     
     threads = start_threads(serial_comm, camera)
-    
-    # Wait for user input thread to finish
-    threads[-1].join()
+
+    threads[-1].join()  # Wait for user input listener to finish
     stop_event.set()
-    
-    # Ensure all other threads terminate
+
     for thread in threads[:-1]:
         thread.join()
-    
+
     serial_comm.close()
     camera.release()
     print("[INFO] System shutdown.")
