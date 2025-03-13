@@ -28,6 +28,7 @@ SERIAL_PORT = config["serial"]["port"]
 BAUDRATE = config["serial"]["baudrate"]
 CLASSES = config["model"]["classes"]
 MODEL_NAME = config["model"]["name"]
+arch = config["model"]["arch"]
 BATCH_SIZE = config["hyperparameters"]["batch_size"]
 EPOCHS = config["hyperparameters"]["epochs"]
 IMG_SIZE = config["hyperparameters"]["img_size"]
@@ -53,6 +54,7 @@ write_queue = queue.Queue()
 frame_queue = queue.Queue(maxsize=1)
 image_queue = queue.Queue()
 label_queue = queue.Queue(maxsize=1)
+classes_queue = queue.Queue()
 start_train = queue.Queue()
 start_train.put("start")
 
@@ -123,10 +125,10 @@ def start_threads(serial_comm, camera):
         threading.Thread(target=write_serial, args=(stop_event, serial_comm, write_queue), daemon=True),
         threading.Thread(target=capture_latest_frame, args=(camera, frame_queue, stop_event, mode_record), daemon=True),
         threading.Thread(target=save_images, args=(stop_event, mode_train, frame_queue, image_queue, camera, label_queue, start_time), daemon=True),
-        threading.Thread(target=process_images, args=(stop_event, mode_train, frame_queue, write_queue, MODEL_PATH, CLASSES), daemon=True),
+        threading.Thread(target=process_images, args=(stop_event, mode_train, frame_queue, write_queue, MODEL_PATH, CLASSES, classes_queue), daemon=True),
         threading.Thread(target=handle_received_data, daemon=True),
         threading.Thread(target=monitor_folder, args=(stop_event, start_train, WATCH_DIR, DATASET_DIR, THRESHOLD, CHECK_INTERVAL), daemon=True),
-        threading.Thread(target=train_controller, args=(stop_event, start_train, BATCH_SIZE, EPOCHS, IMG_SIZE, LEARNING_RATE, DATASET_DIR, MODEL_DIR, MODEL_NAME, GPU), daemon=True),
+        threading.Thread(target=train_controller, args=(stop_event, start_train, BATCH_SIZE, EPOCHS, IMG_SIZE, LEARNING_RATE, DATASET_DIR, MODEL_DIR, MODEL_NAME, GPU, classes_queue, arch), daemon=True),
         threading.Thread(target=user_input_listener, daemon=True)
     ]
     for thread in threads:
