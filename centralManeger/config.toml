@@ -9,9 +9,10 @@ model_dir = 'model'
 
 [model]
 classes = ["0000", "0001", "0010", "0011"]
-name = "mobilenetv3_small_latest2.pth"
-# path = "model/mobilenetv3_small_latest.pth"
-# path = "model/vgg_best_model.pth"
+name = "mobilenetv3_small_latest.pth"
+# name = "vgg_best_model.pth"
+arch='mobilenet'
+# arch='vgg'
 
 [monitoring]
 THRESHOLD = 10000  # File count threshold

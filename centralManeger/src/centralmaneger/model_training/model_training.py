@@ -2,14 +2,11 @@ import os
 import random
 import logging
 import numpy as np
-import shutil
-import tomllib
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms, models
 from torch.utils.data import DataLoader
-from datetime import datetime
 import multiprocessing
 import threading
 import queue
@@ -17,7 +14,6 @@ import queue
 # -------------------------
 # Logging setup
 logger = logging.getLogger(__name__)
-
 
 def set_seed(seed=57):
     """Fixes random seed for reproducibility.
@@ -32,14 +28,14 @@ def set_seed(seed=57):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-
-def prepare_data(data_dir, img_size, batch_size):
+def prepare_data(data_dir, img_size, batch_size, classes_queue):
     """Loads dataset, prepares DataLoaders, and retrieves the number of classes.
 
     Args:
         data_dir (str): Path to dataset directory.
         img_size (int): Image size for resizing.
         batch_size (int): Batch size for training.
+        classes_queue (queue.Queue): Queue to send class names.
 
     Returns:
         tuple: (dataloaders, image_datasets, num_classes)
@@ -77,21 +73,26 @@ def prepare_data(data_dir, img_size, batch_size):
 
         num_classes = len(image_datasets['train'].classes)
         logger.info(f"[TRAIN] Dataset loaded successfully with {num_classes} classes.")
+
+        classes = image_datasets['train'].classes
+        if not classes_queue.empty():
+            classes_queue.get()
+        classes_queue.put(classes)
         return dataloaders, image_datasets, num_classes
 
     except Exception as e:
         logger.error(f"[Error] loading dataset: {e}")
         raise
 
-
-def initialize_model(num_classes, model_dir, model_name, device):
-    """Initializes the MobileNetV3-Small model and loads existing weights if available.
+def initialize_model(num_classes, model_dir, model_name, device, arch='mobilenet'):
+    """Initializes the model and loads existing weights if available.
 
     Args:
         num_classes (int): Number of output classes.
         model_dir (str): Directory to save model.
-        model_name (str): model name.
+        model_name (str): Model name.
         device (torch.device): Computation device.
+        arch (str): Model architecture ('mobilenet' or 'vgg').
 
     Returns:
         tuple: (model, model_path, is_finetune)
@@ -99,13 +100,24 @@ def initialize_model(num_classes, model_dir, model_name, device):
     try:
         model_path = os.path.join(model_dir, model_name)
 
-        model = models.mobilenet_v3_small(weights=None)
-        model.classifier[3] = nn.Linear(model.classifier[3].in_features, num_classes)
+        if arch == 'mobilenet':
+            model = models.mobilenet_v3_small(weights=None)
+            classifier_layer = 3
+        elif arch == 'vgg':
+            model = models.vgg16(weights=None)
+            classifier_layer = 6
+        else:
+            raise ValueError(f"Unsupported model architecture: {arch}")
+
+        model.classifier[classifier_layer] = nn.Linear(model.classifier[classifier_layer].in_features, num_classes)
         model = model.to(device)
 
         if os.path.exists(model_path):
             logger.info(f"[TRAIN] Loading existing model: {model_path}")
-            model.load_state_dict(torch.load(model_path, map_location=device))
+            state_dict = torch.load(model_path, map_location=device)
+            filtered_state_dict = {k: v for k, v in state_dict.items() if not k.startswith(f'classifier.{classifier_layer}')}
+            model.load_state_dict(filtered_state_dict, strict=False)
+            model.classifier[classifier_layer] = nn.Linear(model.classifier[classifier_layer].in_features, num_classes).to(device)
             return model, model_path, True
         else:
             logger.info("[TRAIN] No existing model found. Starting new training.")
@@ -114,7 +126,6 @@ def initialize_model(num_classes, model_dir, model_name, device):
     except Exception as e:
         logger.error(f"[Error] initializing model: {e}")
         raise
-
 
 def train_model(model, dataloaders, image_datasets, device, model_path, learning_rate, epochs, stop_event):
     """Trains and validates the model.
@@ -131,7 +142,7 @@ def train_model(model, dataloaders, image_datasets, device, model_path, learning
     """
     try:
         criterion = nn.CrossEntropyLoss()
-        optimizer = optim.SGD(model.classifier.parameters(), lr=learning_rate, momentum=0.9, weight_decay=1e-4)
+        optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=1e-4)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
 
         logger.info("[TRAIN] Training started.")
@@ -147,9 +158,8 @@ def train_model(model, dataloaders, image_datasets, device, model_path, learning
 
                 for batch_idx, (inputs, labels) in enumerate(dataloaders[phase]):
                     if stop_event.is_set():
-                        logger.warning("[STOP] Stop event detected during batch! Saving model and terminating training.")
+                        logger.warning("[STOP] Stop event detected! Saving model and terminating training.")
                         torch.save(model.state_dict(), model_path)
-                        logger.info(f"[TRAIN] Model saved at {model_path}")
                         return
 
                     inputs, labels = inputs.to(device), labels.to(device)
@@ -164,29 +174,26 @@ def train_model(model, dataloaders, image_datasets, device, model_path, learning
                             loss.backward()
                             optimizer.step()
 
-                    if batch_idx % 10 == 0:
-                        logger.info(f"[TRAIN] {phase} Epoch {epoch+1}/{epochs} - Batch {batch_idx}/{total_batches} - Loss: {loss.item():.4f}")
-
                     running_loss += loss.item() * inputs.size(0)
                     running_corrects += torch.sum(preds == labels.data)
+
+                    if batch_idx % 10 == 0:
+                        logger.info(f"[TRAIN] {phase} Epoch {epoch+1}/{epochs} - Batch {batch_idx}/{total_batches} - Loss: {loss.item():.4f}")
 
                 epoch_loss = running_loss / len(image_datasets[phase])
                 epoch_acc = running_corrects.double() / len(image_datasets[phase])
                 logger.info(f"[TRAIN] {phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}")
 
             torch.save(model.state_dict(), model_path)
-            logger.info(f"[TRAIN] Model saved at {model_path}")
             scheduler.step(epoch_loss)
 
     except Exception as e:
         logger.error(f"[Error] during training: {e}")
         torch.save(model.state_dict(), model_path)
-        logger.info(f"[TRAIN] Model saved due to error at {model_path}")
         raise
 
 
-
-def train_controller(stop_event, start_train, batch_size, epochs, img_size, learning_rate, data_dir, model_dir, model_name, gpu):
+def train_controller(stop_event, start_train, batch_size, epochs, img_size, learning_rate, data_dir, model_dir, model_name, gpu, classes_queue, arch='mobilenet'):
     """Watches for training start signals and runs training when triggered.
 
     Args:
@@ -204,8 +211,8 @@ def train_controller(stop_event, start_train, batch_size, epochs, img_size, lear
         task = start_train.get()
         if task == "start":
             logger.info("[TRAIN] Training triggered.")
-            dataloaders, image_datasets, num_classes = prepare_data(data_dir, img_size, batch_size)
-            model, model_path, is_finetune = initialize_model(num_classes, model_dir, model_name, device)
+            dataloaders, image_datasets, num_classes = prepare_data(data_dir, img_size, batch_size, classes_queue)
+            model, model_path, is_finetune = initialize_model(num_classes, model_dir, model_name, device, arch)
 
             if is_finetune:
                 learning_rate *= 0.1

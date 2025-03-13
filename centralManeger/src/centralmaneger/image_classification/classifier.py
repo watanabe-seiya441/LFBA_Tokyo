@@ -144,7 +144,7 @@ class ImageClassifier:
             image_data = Image.fromarray(image_data[..., ::-1])
         return self.transform(image_data.convert('RGB')).unsqueeze(0).to(self.device)
 
-def process_images(stop_event, mode_train, frame_queue, write_queue, model_path, classes):
+def process_images(stop_event, mode_train, frame_queue, write_queue, model_path, classes, classes_queue):
     """
     Process images in a background thread for classification.
 
@@ -155,13 +155,17 @@ def process_images(stop_event, mode_train, frame_queue, write_queue, model_path,
         write_queue (queue.Queue): Queue to send classification results.
         model_path (str): Path to the model checkpoint.
         classes (list): List of class names.
+        classes_queue (queue.Queue): Queue to receive class names.
     """
     classifier, previous_prediction, consecutive_count = None, None, 0
     last_model_update = None
     current_state = None
 
     while not stop_event.is_set():
-        classifier, last_model_update = _check_and_reload_model(classifier, model_path, last_model_update)
+        classifier, last_model_update, new_classes = _check_and_reload_model(classifier, model_path, last_model_update, classes_queue)
+        if new_classes is not None:
+            classes = new_classes
+
         if not classifier:
             # _switch_to_train_mode_if_needed(mode_train)
             continue
@@ -191,7 +195,7 @@ def process_images(stop_event, mode_train, frame_queue, write_queue, model_path,
         previous_prediction = predicted_class
         frame_queue.task_done()
 
-def _check_and_reload_model(classifier, model_path, last_model_update):
+def _check_and_reload_model(classifier, model_path, last_model_update, classes_queue):
     """
     Check for model updates and reload if necessary.
 
@@ -199,16 +203,28 @@ def _check_and_reload_model(classifier, model_path, last_model_update):
         classifier (ImageClassifier): Current classifier instance.
         model_path (str): Path to the model checkpoint.
         last_model_update (float): Last model update timestamp.
+        classes_queue (queue.Queue): Queue to receive class names.
 
     Returns:
-        tuple: (Updated classifier, latest model update timestamp)
+        tuple: (Updated classifier, latest model update timestamp, updated classes or None)
     """
     if os.path.exists(model_path):
         current_update = os.path.getmtime(model_path)
         if not classifier or current_update > (last_model_update or 0):
             logger.info(f"[MODEL] Model update detected. Reloading model from {model_path}.")
-            return ImageClassifier(model_path), current_update
-    return classifier, last_model_update
+            classifier = ImageClassifier(model_path)
+
+            # Reload classes from the queue if available
+            if not classes_queue.empty():
+                classes = classes_queue.get()
+                classes_queue.put(classes)  # Put it back for future access
+                logger.info(f"[MODEL] Classes reloaded from queue: {classes}")
+            else:
+                classes = None
+                logger.warning("[WARNING] Classes queue is empty during model reload!")
+
+            return classifier, current_update, classes
+    return classifier, last_model_update, None
 
 def _switch_to_train_mode_if_needed(mode_train):
     """
