@@ -54,7 +54,7 @@ frame_queue = queue.Queue(maxsize=1)
 image_queue = queue.Queue()
 label_queue = queue.Queue(maxsize=1)
 start_train = queue.Queue()
-# start_train.put("start")
+start_train.put("start")
 
 # Logging setup
 log_dir = "log"

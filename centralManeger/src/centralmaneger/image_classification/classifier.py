@@ -206,7 +206,7 @@ def _check_and_reload_model(classifier, model_path, last_model_update):
     if os.path.exists(model_path):
         current_update = os.path.getmtime(model_path)
         if not classifier or current_update > (last_model_update or 0):
-            logger.info(f"[INFO] Model update detected. Reloading model from {model_path}.")
+            logger.info(f"[MODEL] Model update detected. Reloading model from {model_path}.")
             return ImageClassifier(model_path), current_update
     return classifier, last_model_update
 
@@ -218,7 +218,7 @@ def _switch_to_train_mode_if_needed(mode_train):
         mode_train (threading.Event): Training mode event.
     """
     if not mode_train.is_set():
-        logger.info("[INFO] The model has not been generated yet. Switching to train mode.")
+        logger.info("[MODEL] The model has not been generated yet. Switching to train mode.")
         mode_train.set()
     time.sleep(1)
 
