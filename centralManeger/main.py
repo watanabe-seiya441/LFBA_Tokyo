@@ -26,6 +26,7 @@ with open("config.toml", "rb") as config_file:
 # Configuration parameters
 SERIAL_PORT = config["serial"]["port"]
 BAUDRATE = config["serial"]["baudrate"]
+cameraID = config["camera"]["cameraID"]
 CLASSES = config["model"]["classes"]
 MODEL_NAME = config["model"]["name"]
 arch = config["model"]["arch"]
@@ -140,7 +141,7 @@ def main():
     Main function to initialize components and manage thread lifecycle.
     """
     serial_comm = SerialCommunication(SERIAL_PORT, BAUDRATE)
-    camera = Camera(camera_id=0, capture_interval=1)
+    camera = Camera(camera_id=cameraID, capture_interval=1)
     
     threads = start_threads(serial_comm, camera)
 

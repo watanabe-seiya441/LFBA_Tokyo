@@ -61,6 +61,41 @@ $ poetry install
 To start the system, follow these steps:
 
 Ensure that your camera and switch are connected to this PC.  
+
+まず、config.tomlを書いてください。
+```
+[serial]
+port = "/dev/ttyACM0"
+baudrate = 9600
+
+[directory]
+image_dir = 'image/recorded'
+dataset_dir = 'dataset'    
+model_dir = 'model'
+
+[model]
+classes = ["0000", "0001", "0010", "0011"]
+name = "mobilenetv3_small_latest.pth"
+# name = "vgg_best_model.pth"
+arch='mobilenet'
+# arch='vgg'
+
+[monitoring]
+THRESHOLD = 10000  # File count threshold
+CHECK_INTERVAL = 60
+
+[hyperparameters]
+# num_classes = 4 
+batch_size = 32
+epochs = 5
+img_size = 224
+learning_rate = 0.001
+
+[gpu]
+gpu_index = 1
+```
+[serial]の箇所では[serial]
+
 Run the following command:
 ```sh
 cd centralManager/
