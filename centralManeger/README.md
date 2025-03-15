@@ -157,3 +157,41 @@ poetry run python main.py
 
 This document provides a clear guide for setting up and operating the Central Manager. For any further assistance, please consult the logs or contact the system administrator.
 
+## ディレクトリ構造
+```
+centralManeger
+├── README.md
+├── config.toml
+├── dataset
+├── image
+├── log
+├── main.py
+├── model
+├── poetry.lock
+├── pyproject.toml
+├── src
+│   └── centralmaneger
+│       ├── __init__.py
+│       ├── camera
+│       │   ├── __init__.py
+│       │   ├── camera.py
+│       │   └── cameraApp.py
+│       ├── create_dataset
+│       │   ├── __init__.py
+│       │   └── folder_monitor.py
+│       ├── image_classification
+│       │   ├── __init__.py
+│       │   └── classifier.py
+│       ├── model_training
+│       │   ├── __init__.py
+│       │   └── model_training.py
+│       └── serial
+│           ├── __init__.py
+│           ├── communication.py
+│           ├── serial_reader.py
+│           └── serial_write.py
+└── tests
+    ├── __init__.py
+    ├── test_main.py
+    └── test_serial.py
+```
