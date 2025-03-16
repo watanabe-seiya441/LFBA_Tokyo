@@ -157,7 +157,12 @@ poetry run python main.py
 
 This document provides a clear guide for setting up and operating the Central Manager. For any further assistance, please consult the logs or contact the system administrator.
 
-## ディレクトリ構造
+# Central Manager
+
+This project is designed to manage various operations, including camera control, dataset creation, image classification, model training, and serial communication. The following is an overview of the directory structure and its components.
+
+## Directory Structure
+
 ```
 centralManeger
 ├── README.md
@@ -195,3 +200,113 @@ centralManeger
     ├── test_main.py
     └── test_serial.py
 ```
+
+## Directory Descriptions
+
+### Root Level
+- **`README.md`**  
+  Provides an overview and documentation for the project.
+
+- **`config.toml`**  
+  Contains configuration settings for the project.
+
+- **`dataset`**  
+  Stores datasets used for model training and evaluation.
+
+- **`image`**  
+  Holds images captured or used during processing.
+
+- **`log`**  
+  Contains log files generated during the program's execution.
+
+- **`main.py`**  
+  The main entry point of the application.
+
+- **`model`**  
+  Stores trained machine learning models.
+
+- **`poetry.lock`**  
+  Locks dependencies to specific versions for consistent environments.
+
+- **`pyproject.toml`**  
+  Defines project metadata and dependencies for Python's Poetry package manager.
+
+### `src/centralmaneger`  
+This is the core source directory containing modules for different functionalities.
+
+- **`__init__.py`**  
+  Initializes the `centralmaneger` package.
+
+#### `camera`  
+Handles camera operations.
+- **`camera.py`**  
+  Contains the core logic for interfacing with the camera hardware.
+- **`cameraApp.py`**  
+  Provides application-level functionality using the camera module.
+
+#### `create_dataset`  
+Manages the creation and organization of datasets.
+- **`folder_monitor.py`**  
+  Monitors directories and manages dataset creation dynamically.
+
+#### `image_classification`  
+Responsible for image classification tasks.
+- **`classifier.py`**  
+  Contains the logic for classifying images using machine learning models.
+
+#### `model_training`  
+Handles training processes for machine learning models.
+- **`model_training.py`**  
+  Implements the model training pipeline.
+
+#### `serial`  
+Manages serial communication with external devices.
+- **`communication.py`**  
+  Provides functions for managing serial communication.
+- **`serial_reader.py`**  
+  Handles reading data from serial ports.
+- **`serial_write.py`**  
+  Manages writing data to serial ports.
+
+### `tests`  
+Contains test files to ensure the stability and correctness of the code. (But not working...)
+
+- **`__init__.py`**  
+  Initializes the `tests` package.
+
+- **`test_main.py`**  
+  Contains unit tests for the `main.py` module.
+
+- **`test_serial.py`**  
+  Contains unit tests for serial communication modules.
+
+---
+
+## ⚙️ Installation
+
+```
+poetry install
+```
+
+---
+
+## 🚀 Usage
+
+```
+poetry run python main.py
+```
+
+---
+
+## 🧪 Running Tests
+
+```
+poetry run pytest
+```
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
