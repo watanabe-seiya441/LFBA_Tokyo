@@ -2,6 +2,9 @@
 port = "/dev/ttyACM0"
 baudrate = 9600
 
+[camera]
+cameraID = 0
+
 [directory]
 image_dir = 'image/recorded'
 dataset_dir = 'dataset'    
