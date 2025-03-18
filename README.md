@@ -41,8 +41,11 @@ Both models achieved an accuracy of over 95%, demonstrating their practical feas
 
 <img src="./result_image/loss_accuracy_plot_vgg.png" width="500">
 <img src="./result_image/loss_accuracy_plot_mobilenetv3.png" width="500">
-<img src="./result_image/confusion_matrix_normalized_vgg.png" width="300">
-<img src="./result_image/confusion_matrix_normalized_mobilenetv3.png" width="300">
+<div style="display: flex;">
+  <img src="./result_image/confusion_matrix_normalized_vgg.png" width="300">
+  <img src="./result_image/confusion_matrix_normalized_mobilenetv3.png" width="300">
+</div>
+
 
 Furthermore, heatmap visualizations of the VGG model confirmed that the model correctly focused on the wrist regions as intended, validating our scenario design.
 
