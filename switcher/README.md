@@ -28,3 +28,11 @@ The board includes 4 buttons, 2 toggle switches, and 3 indicator lights.
 ### Lights
 - The board has three indicator lights to provide visual feedback on the system status. (Detailed information about each light's function can be added as needed.)
 
+## Switcher Specifications
+### Modes of Operation
+#### Manual Mode
+- When a button or toggle switch is pressed, a signal is transmitted.
+- Signal format: `S {4 buttons}{2 toggle switches}`
+#### Auto Mode
+- When a command starting with `C` is received from the Main PC, the buttons operate accordingly.
+- Command format: `C {4 buttons}`
