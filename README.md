@@ -1,51 +1,47 @@
 # LFBA_Thailand
 
-This repository is intended for the study of LFBA at Chulalongkorn University.
+This repository is dedicated to research conducted at Chulalongkorn University in Thailand, where we implement and evaluate LFBA (Logic-Free Building Automation) in practice.  
+Unlike conventional building automation systems, LFBA directly outputs control signals from the model without predefined logic.  
+For this study, we developed a system that operates two fans (air conditioning units) based on predefined scenarios.
 
+## Objective of This Study
 
-------メモ ---------（後で英語にする）
-## the objective of this study
-本研究の目的は以下の3つである。
-1. 制御対象物が画像内に入り込んでいる際のショートカットラーニングの有無
-東大でのLFBAでは照明パターンの違いによる光や影、コントラストの異なりから、それらを特徴量として学習するショートカットラーニングが発生した。
-本研究では、ファンの動作の有無を画像に移すことで、それらをショートカットラーニングを起こすかどうかを確認することをする。
-そのため、画像内にファンが移っていることが重要である。
-2. LFBAに必要な枚数
-LFBAが実際に上手に動くのに何枚程度必要か、は重要な指標である。
-というのも、枚数が不十分であれば、automationモードに以降できないからである。
-そこで、学習に用いる枚数を制限し、モデルをいくつか回すことで、どのレベルの枚数があれば十分か、過学習しないか、を確かめていく。
-なお、これは使用するモデルに依存するため、そこに留意する必要がある。
-3. 軽量DNNモデルを用いた学習
-現在はVGGを始め、ResNetやViTを用いているが、収束率が速いことから、実際はモデルはオーバースペックではないか、と思われる。
-LFBAは家庭などで使用することを目的としているため、できる限り小さいPCで動くことが望ましく、そのため軽量なモデルで性能を発揮できればうれしい。
-そこで、既存の軽量モデルを用いて学習し、どの程度の精度が出るかをVGGなどと比べながら、確かめていく。
+This research aims to achieve the following two objectives:
 
-## scenario
-実験に用いるシナリオは以下の通りとする。
-| ID | シナリオ  | ラベル |
-| ---- | ---- | ---- |
-| S00 | 誰もいない | 0000 |
-| S10 | 右の席に人が座っている。手首は見えない。 | 0000 |
-| S11 | 右の席に人が座っている。手首が見える。 | 0010 |
-| S20 | 左の席に人が座っている。手首は見えない。 | 0000 |
-| S21 | 左の席に人が座っている。手首が見える。 | 0001 |
-| S30 | 両方の席に人が座っている。両方とも手首は見えない。 | 0000 |
-| S32 | 両方の席に人が座っている。右の人だけ手首が見える。 | 0010 |
-| S33 | 両方の席に人が座っている。左の人だけ手首が見える。 | 0001 |
-| S34 | 両方の席に人が座っている。両方とも手首が見える。 | 0011 |
+1. **Investigating the Presence of Shortcut Learning When Control Targets Appear in the Image**  
+   In the LFBA experiments conducted at the University of Tokyo, shortcut learning was observed due to variations in lighting patterns, shadows, and contrast, which were unintentionally learned as distinguishing features.  
+   In this study, we aim to determine whether similar shortcut learning occurs when the presence or absence of fan operation is visible in the images.  
+   Therefore, it is crucial that the fans are captured in the images used for training.
 
-------メモ ---------（後でswichディレクトリ下にREADMEを書き、そこに書く）
-## Switcherの仕様
-#### Manualモード
-- ボタンあるいはトグルスイッチが押されるとsignalを発信
-    - S {ボタン4つ}{トグルスイッチ2つ}
-#### Autoモード
-- Main PCからCから始まるコマンドが来るとそれの通りにボタンを操作
-    - C {ボタン4つ}
+2. **Evaluating Lightweight DNN Models for Learning**  
+   While models such as VGG, ResNet, and ViT have been used in our previous studies, their fast convergence suggests that they may be over-specified for this task.  
+   Since LFBA is intended for household applications, it is preferable for the system to run on small, low-power computing devices.  
+   To explore this possibility, we evaluate existing lightweight models and compare their performance with VGG and other models to determine if they can achieve comparable accuracy.
 
-ここからPCの仕様として必要なものは以下の通り
-- Sから始まるSignalを常に受け取るようにする
-- 受け取ったら
-    - ボタン4つの情報を保存
-    - is_Recordならカメラを操作
-- 逆に推論した場合、Cと4桁の数字を出す。
+## Experiment Scenarios
+
+The experiment is conducted based on the following scenarios:
+
+| ID  | Scenario | Label |
+|---- | -------- | ------ |
+| S00 | No one is present. | 0000 |
+| S10 | A person is seated on the right, but their wrist is not visible. | 0000 |
+| S11 | A person is seated on the right, and their wrist is visible. | 0010 |
+| S20 | A person is seated on the left, but their wrist is not visible. | 0000 |
+| S21 | A person is seated on the left, and their wrist is visible. | 0001 |
+| S30 | Two people are seated, but neither of their wrists are visible. | 0000 |
+| S32 | Two people are seated, but only the right person’s wrist is visible. | 0010 |
+| S33 | Two people are seated, but only the left person’s wrist is visible. | 0001 |
+| S34 | Two people are seated, and both of their wrists are visible. | 0011 |
+
+## Results
+
+We trained and evaluated models using datasets with VGG and MobileNetV3.  
+Both models achieved an accuracy of over 95%, demonstrating their practical feasibility.  
+![loss_accuracy_plot [VGG16]](./result_image/loss_accuracy_plot_vgg.png)
+![loss_accuracy_plot [MobileNetV3 small]](./result_image/loss_accuracy_plot_mobilenetv3.png)
+![confusion_matrix [VGG16]](./result_image/confusion_matrix_normalized_vgg.png)
+![confusion_matrix [MobileNetV3]](./result_image/confusion_matrix_normalized_mobilenetv3.png)
+
+Furthermore, heatmap visualizations of the VGG model confirmed that the model correctly focused on the wrist regions as intended, validating our scenario design.
+![Heatmap Visualization [VGG]](./result_image/overlay_vgg.jpg)
