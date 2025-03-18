@@ -45,4 +45,5 @@ Both models achieved an accuracy of over 95%, demonstrating their practical feas
 <img src="./result_image/confusion_matrix_normalized_mobilenetv3.png" width="300">
 
 Furthermore, heatmap visualizations of the VGG model confirmed that the model correctly focused on the wrist regions as intended, validating our scenario design.
+
 <img src="./result_image/overlay_vgg.jpg" width="200">
