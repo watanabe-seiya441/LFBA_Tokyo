@@ -40,8 +40,8 @@ We trained and evaluated models using datasets with VGG and MobileNetV3.
 Both models achieved an accuracy of over 95%, demonstrating their practical feasibility.  
 ![loss_accuracy_plot [VGG16]](./result_image/loss_accuracy_plot_vgg.png)
 ![loss_accuracy_plot [MobileNetV3 small]](./result_image/loss_accuracy_plot_mobilenetv3.png)
-![confusion_matrix [VGG16]](./result_image/confusion_matrix_normalized_vgg.png)
-![confusion_matrix [MobileNetV3]](./result_image/confusion_matrix_normalized_mobilenetv3.png)
+<img src="./result_image/confusion_matrix_normalized_vgg.png" width="300">
+<img src="./result_image/confusion_matrix_normalized_mobilenetv3.png" width="300">
 
 Furthermore, heatmap visualizations of the VGG model confirmed that the model correctly focused on the wrist regions as intended, validating our scenario design.
 ![Heatmap Visualization [VGG]](./result_image/overlay_vgg.jpg)
