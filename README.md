@@ -50,3 +50,8 @@ Both models achieved an accuracy of over 95%, demonstrating their practical feas
 Furthermore, heatmap visualizations of the VGG model confirmed that the model correctly focused on the wrist regions as intended, validating our scenario design.
 
 <img src="./result_image/overlay_vgg.jpg" width="200">
+
+## References
+[Ochiai, H., Hashimoto, K., Sakamoto, T., Watanabe, S., Hara, R., Yagi, R., ... & Esaki, H. (2024). Logic-Free Building Automation: Learning the Control of Room Facilities with Wall Switches and Ceiling Camera. arXiv preprint arXiv:2410.02789.](https://arxiv.org/abs/2410.02789)
+[Simonyan, K., & Zisserman, A. (2014). Very deep convolutional networks for large-scale image recognition. arXiv preprint arXiv:1409.1556.](https://arxiv.org/abs/1409.1556)
+[Howard, A., Sandler, M., Chu, G., Chen, L. C., Chen, B., Tan, M., ... & Adam, H. (2019). Searching for mobilenetv3. In Proceedings of the IEEE/CVF international conference on computer vision (pp. 1314-1324).](https://arxiv.org/abs/1905.02244)
