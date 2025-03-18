@@ -42,8 +42,8 @@ Both models achieved an accuracy of over 95%, demonstrating their practical feas
 <img src="./result_image/loss_accuracy_plot_vgg.png" width="500">
 <img src="./result_image/loss_accuracy_plot_mobilenetv3.png" width="500">
 <div style="display: flex;">
-  <img src="./result_image/confusion_matrix_normalized_vgg.png" width="300">
-  <img src="./result_image/confusion_matrix_normalized_mobilenetv3.png" width="300">
+  <img src="./result_image/confusion_matrix_normalized_vgg.png" width="200">
+  <img src="./result_image/confusion_matrix_normalized_mobilenetv3.png" width="200">
 </div>
 
 
