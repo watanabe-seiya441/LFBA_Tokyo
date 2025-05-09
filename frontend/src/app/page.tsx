@@ -12,20 +12,22 @@ export default function LiveInferencePage() {
   const [imageUrl, setImageUrl] = useState<string>('');
   const [bits, setBits] = useState<string>('----');
   const [running, setRunning] = useState<boolean>(false);
+  const [error, setError] = useState<boolean>(false);
   const intervalRef = useRef<number | null>(null);
 
   const fetchData = async () => {
     try {
+      setError(false);
       const res = await fetch('/api/inference');
       if (!res.ok) {
-        console.error('Failed to fetch inference data:', res.statusText);
+        setError(true);
         return;
       }
       const data: InferenceResponse = await res.json();
       setImageUrl(data.imageUrl);
       setBits(data.bits);
-    } catch (error) {
-      console.error('Error fetching inference data:', error);
+    } catch {
+      setError(true);
     }
   };
 
@@ -45,22 +47,33 @@ export default function LiveInferencePage() {
     };
   }, [running]);
 
+  const handleStart = () => {
+    setRunning(true);
+  };
+
+  const handleStop = () => {
+    setRunning(false);
+    setError(false);
+  };
+
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-8 space-y-6">
+      <h1 className="text-2xl font-bold">LFBA </h1>
       <h1 className="text-2xl font-bold">リアルタイム推論表示</h1>
 
+      {/* 制御ボタン */}
       <div>
         {running ? (
           <button
             className="px-4 py-2 bg-red-500 text-white rounded"
-            onClick={() => setRunning(false)}
+            onClick={handleStop}
           >
             停止
           </button>
         ) : (
           <button
             className="px-4 py-2 bg-green-500 text-white rounded"
-            onClick={() => setRunning(true)}
+            onClick={handleStart}
           >
             開始
           </button>
@@ -73,6 +86,16 @@ export default function LiveInferencePage() {
         </button>
       </div>
 
+      {/* エラーメッセージ（表示空間を常に確保） */}
+      <div className="h-6 flex items-center">
+        {error ? (
+          <span className="text-red-500 font-semibold">読み込めません</span>
+        ) : (
+          <>&nbsp;</>
+        )}
+      </div>
+
+      {/* カメラ画像表示 */}
       <div className="w-full max-w-md border rounded overflow-hidden">
         {imageUrl ? (
           <Image
@@ -90,6 +113,7 @@ export default function LiveInferencePage() {
         )}
       </div>
 
+      {/* ビット表示 */}
       <div className="text-center">
         <span className="text-lg mr-2">推論ビット:</span>
         <span className="inline-block px-4 py-2 bg-gray-200 rounded font-mono text-xl">
