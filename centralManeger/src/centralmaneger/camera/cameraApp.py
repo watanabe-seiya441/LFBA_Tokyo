@@ -38,13 +38,12 @@ def should_save_image(current_time: float, last_label_update_time: float, label:
         and mode_train.is_set()
     )
 
-def save_image(camera, frame, start_time, label, image_queue):
+def save_image(camera, frame, start_time, label, image_queue, IMAGE_DIR):
     """Save an image with the appropriate filename and store it in the image queue."""
     timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
     # dir_path = f"image/{start_time}"
-    dir_path = "image/recorded"
-    os.makedirs(dir_path, exist_ok=True)
-    filename = f"{dir_path}/{timestamp}_{label}.jpg"
+    os.makedirs(IMAGE_DIR, exist_ok=True)
+    filename = f"{IMAGE_DIR}/{timestamp}_{label}.jpg"
     
     camera.save_image(filename, frame)
     image_queue.put(filename)
@@ -53,7 +52,7 @@ def save_image(camera, frame, start_time, label, image_queue):
 def save_images(
     stop_event: threading.Event, mode_train: threading.Event, 
     frame_queue: queue.Queue, image_queue: queue.Queue, 
-    camera, label_queue: queue.Queue, start_time: str
+    camera, label_queue: queue.Queue, start_time: str, IMAGE_DIR: str
 ) -> None:
     """Saves images at a 1-second interval based on training mode and label updates."""
     
@@ -78,7 +77,7 @@ def save_images(
 
         # Save the image if conditions are met
         if should_save_image(current_time, last_label_update_time, latest_label, mode_train):
-            save_image(camera, frame, start_time, latest_label, image_queue)
+            save_image(camera, frame, start_time, latest_label, image_queue, IMAGE_DIR)
 
         # Ensure a 1-second interval between captures
         time.sleep(max(0, 1 - (time.time() - current_time)))
