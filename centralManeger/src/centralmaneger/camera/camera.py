@@ -1,3 +1,4 @@
+# centralManeger/src/centralmaneger/camera/camera.py
 import cv2
 
 class Camera:

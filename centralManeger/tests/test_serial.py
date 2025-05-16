@@ -1,3 +1,4 @@
+# centralManeger/src/centralmaneger/tests/test_serial.py
 import pytest
 import threading
 import queue

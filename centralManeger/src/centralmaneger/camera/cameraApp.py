@@ -1,3 +1,4 @@
+# centralManeger/src/centralmaneger/camera/cameraApp.py
 import time
 import threading
 import queue

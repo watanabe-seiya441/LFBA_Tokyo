@@ -1,3 +1,4 @@
+# centralManeger/src/centralmaneger/image_classification/classifier.py
 import torch
 import torchvision.transforms as transforms
 from torchvision import models

@@ -1,3 +1,4 @@
+# centralManeger/src/centralmaneger/serial/serial_reader.py
 from centralmaneger.serial.communication import SerialCommunication
 import re
 import threading
