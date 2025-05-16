@@ -19,7 +19,7 @@ export default function LiveInferencePage() {
     try {
       setError(false);
       // const res = await fetch('/api/inference');
-      const res = await fetch('http://localhost:8000/api/camera');
+      const res = await fetch('http://localhost:8000/api/inference');
       if (!res.ok) {
         setError(true);
         return;
