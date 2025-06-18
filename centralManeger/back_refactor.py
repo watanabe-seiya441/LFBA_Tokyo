@@ -1,10 +1,9 @@
 """
-back.py
-========
-【リファクタリング済み】システム統合管理エントリーポイント
+back_refactor.py
+システム統合管理エントリーポイント
 
 使用方法:
-    poetry run python back.py
+    poetry run python back_refactor.py
 
 機能:
 - システム全体のライフサイクル管理

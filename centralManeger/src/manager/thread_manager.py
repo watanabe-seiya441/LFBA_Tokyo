@@ -36,7 +36,7 @@ class ThreadManager:
         self.read_queue = queue.Queue()
         self.write_queue = queue.Queue()
         self.frame_queue = queue.Queue(maxsize=1)
-        self.api_frame_queue = queue.Queue(maxsize=1)
+        self.api_frame_queue = queue.Queue(maxsize=1) # frontに送るためのキュー
         self.image_queue = queue.Queue()
         self.label_queue = queue.Queue(maxsize=1)
         self.classes_queue = queue.Queue()
