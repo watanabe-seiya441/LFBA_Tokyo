@@ -6,16 +6,17 @@ baudrate = 9600
 cameraID = 0
 
 [directory]
-image_dir = 'image/recorded'
-dataset_dir = 'dataset'    
-model_dir = 'model'
+image_dir = "image/test"
+dataset_dir = "dataset"   
+model_dir = "model"
 
 [model]
-classes = ["0000", "0001", "0010", "0011"]
-name = "mobilenetv3_small_latest.pth"
-# name = "vgg_best_model.pth"
-arch='mobilenet'
-# arch='vgg'
+classes = ["0000", "0001", "0011", "0100", "0110", "1000", "1010", "1111"]
+# name = "mobilenetv3_small_latest.pth"
+name = "dataset0b_vgg_best_model.pth"
+# arch='mobilenet'
+arch="vgg"
+is_update = false
 
 [monitoring]
 THRESHOLD = 10000  # File count threshold

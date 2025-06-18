@@ -6,3 +6,8 @@
 *.pth
 
 !overlay_vgg.jpg
+
+README_for_me.md
+
+.vscode/
+dev/

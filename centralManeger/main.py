@@ -30,6 +30,7 @@ cameraID = config["camera"]["cameraID"]
 CLASSES = config["model"]["classes"]
 MODEL_NAME = config["model"]["name"]
 arch = config["model"]["arch"]
+is_update = config["model"]["is_update"]
 BATCH_SIZE = config["hyperparameters"]["batch_size"]
 EPOCHS = config["hyperparameters"]["epochs"]
 IMG_SIZE = config["hyperparameters"]["img_size"]
@@ -37,7 +38,7 @@ LEARNING_RATE = config["hyperparameters"]["learning_rate"]
 DATASET_DIR = config["directory"]["dataset_dir"]
 MODEL_DIR = config["directory"]["model_dir"]
 GPU = config["gpu"]["gpu_index"]
-WATCH_DIR = config["directory"]["image_dir"]
+IMAGE_DIR = config["directory"]["image_dir"]
 THRESHOLD = config["monitoring"]["THRESHOLD"]
 CHECK_INTERVAL = config["monitoring"]["CHECK_INTERVAL"]
 
@@ -125,13 +126,21 @@ def start_threads(serial_comm, camera):
         threading.Thread(target=listen_serial, args=(stop_event, serial_comm, read_queue), daemon=True),
         threading.Thread(target=write_serial, args=(stop_event, serial_comm, write_queue), daemon=True),
         threading.Thread(target=capture_latest_frame, args=(camera, frame_queue, stop_event, mode_record), daemon=True),
-        threading.Thread(target=save_images, args=(stop_event, mode_train, frame_queue, image_queue, camera, label_queue, start_time), daemon=True),
+        threading.Thread(target=save_images, args=(stop_event, mode_train, frame_queue, image_queue, camera, label_queue, start_time, IMAGE_DIR), daemon=True),
         threading.Thread(target=process_images, args=(stop_event, mode_train, frame_queue, write_queue, MODEL_PATH, CLASSES, classes_queue), daemon=True),
         threading.Thread(target=handle_received_data, daemon=True),
-        threading.Thread(target=monitor_folder, args=(stop_event, start_train, WATCH_DIR, DATASET_DIR, THRESHOLD, CHECK_INTERVAL), daemon=True),
-        threading.Thread(target=train_controller, args=(stop_event, start_train, BATCH_SIZE, EPOCHS, IMG_SIZE, LEARNING_RATE, DATASET_DIR, MODEL_DIR, MODEL_NAME, GPU, classes_queue, arch), daemon=True),
         threading.Thread(target=user_input_listener, daemon=True)
     ]
+
+    # When updating the model, the following two threads should also be started:
+    if is_update:
+        threads.append(
+            threading.Thread(target=monitor_folder, args=(stop_event, start_train, IMAGE_DIR, DATASET_DIR, THRESHOLD, CHECK_INTERVAL), daemon=True)
+        )
+        threads.append(
+            threading.Thread(target=train_controller, args=(stop_event, start_train, BATCH_SIZE, EPOCHS, IMG_SIZE, LEARNING_RATE, DATASET_DIR, MODEL_DIR, MODEL_NAME, GPU, classes_queue, arch), daemon=True)
+        )
+
     for thread in threads:
         thread.start()
     return threads
