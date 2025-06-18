@@ -25,10 +25,10 @@ class ImageClassifier:
         """
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = self._load_model(model_path)
-        self.transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        self.transform = transforms.Compose([ 
+            transforms.Resize((224, 224)),  
+            transforms.ToTensor(),  
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  
         ])
 
     def _load_model(self, model_path):
@@ -125,11 +125,12 @@ class ImageClassifier:
         Returns:
             int: Predicted class index.
         """
-        image = self._prepare_image(image_data)
+        image = self._prepare_image(image_data)  # e.g. tensor([1, 3, 224, 224]) - preprocessed image
         with torch.no_grad():
-            output = self.model(image)
-            _, predicted = torch.max(output, 1)
-        return predicted.item()
+            output = self.model(image)  # e.g. tensor([[-1.2, 0.5, 2.1, ...]]) - model output logits
+            _, predicted = torch.max(output, 1)  # e.g. tensor([2]) - predicted class index
+            # note: ここをいじってすべての推論値を出力させる
+        return predicted.item()  # e.g. 2 - class index as integer
 
     def _prepare_image(self, image_data):
         """
@@ -143,7 +144,7 @@ class ImageClassifier:
         """
         if isinstance(image_data, np.ndarray):
             image_data = Image.fromarray(image_data[..., ::-1])
-        return self.transform(image_data.convert('RGB')).unsqueeze(0).to(self.device)
+        return self.transform(image_data.convert('RGB')).unsqueeze(0).to(self.device)  # e.g. tensor([1, 3, 224, 224]) on device
 
 def process_images(stop_event, mode_train, frame_queue, write_queue, model_path, classes, classes_queue):
     """
@@ -158,14 +159,14 @@ def process_images(stop_event, mode_train, frame_queue, write_queue, model_path,
         classes (list): List of class names.
         classes_queue (queue.Queue): Queue to receive class names.
     """
-    classifier, previous_prediction, consecutive_count = None, None, 0
-    last_model_update = None
-    current_state = None
+    classifier, previous_prediction, consecutive_count = None, None, 0 
+    last_model_update = None  # e.g. None, 1640995200.123 - timestamp
+    current_state = None  # e.g. None, "0000", "0001" - current class state
 
     while not stop_event.is_set():
         classifier, last_model_update, new_classes = _check_and_reload_model(classifier, model_path, last_model_update, classes_queue)
         if new_classes is not None:
-            classes = new_classes
+            classes = new_classes  # e.g. ["0000", "0001", "0011", "0100", ...]
 
         if not classifier:
             # _switch_to_train_mode_if_needed(mode_train)
@@ -176,7 +177,7 @@ def process_images(stop_event, mode_train, frame_queue, write_queue, model_path,
             time.sleep(1)
             continue
 
-        image_data = frame_queue.get()
+        image_data = frame_queue.get()  # e.g. numpy.ndarray(480, 640, 3) - BGR image
         if image_data is None:
             frame_queue.task_done()
             continue
@@ -189,11 +190,11 @@ def process_images(stop_event, mode_train, frame_queue, write_queue, model_path,
 
         consecutive_count = consecutive_count + 1 if predicted_class == previous_prediction else 1
         if consecutive_count >= 3 and current_state != classes[predicted_class]:
-            write_queue.put(classes[predicted_class])
+            write_queue.put(classes[predicted_class])  # e.g. "0000", "0001"
             logger.info(f"[PROCESS] Stable prediction confirmed: {classes[predicted_class]} (Confidence: {confidence:.2f})")
-            current_state = classes[predicted_class]
+            current_state = classes[predicted_class]  # e.g. "0000", "0001"
             time.sleep(5)
-        previous_prediction = predicted_class
+        previous_prediction = predicted_class  # e.g. 2, 5
         frame_queue.task_done()
 
 def _check_and_reload_model(classifier, model_path, last_model_update, classes_queue):
@@ -210,7 +211,7 @@ def _check_and_reload_model(classifier, model_path, last_model_update, classes_q
         tuple: (Updated classifier, latest model update timestamp, updated classes or None)
     """
     if os.path.exists(model_path):
-        current_update = os.path.getmtime(model_path)
+        current_update = os.path.getmtime(model_path)  # e.g. 1640995200.123 - file modification timestamp
         if not classifier or current_update > (last_model_update or 0):
             logger.info(f"[MODEL] Model update detected. Reloading model from {model_path}.")
             classifier = ImageClassifier(model_path)
@@ -255,20 +256,20 @@ def _classify_image(classifier, image_data):
     
     try:
         with torch.no_grad():
-            transformed_image = classifier._prepare_image(image_data)
-            output = classifier.model(transformed_image)
-            probabilities = torch.nn.functional.softmax(output, dim=1)[0].cpu().numpy()
-            sorted_indices = np.argsort(probabilities)[::-1]
-            top_1_idx, top_2_idx = sorted_indices[:2]
-            top_1_confidence = probabilities[top_1_idx]
-            top_2_confidence = probabilities[top_2_idx]
+            transformed_image = classifier._prepare_image(image_data)  # e.g. tensor([1, 3, 224, 224]) - preprocessed image
+            output = classifier.model(transformed_image)  # e.g. tensor([[-1.2, 0.5, 2.1, ...]]) - model output logits
+            probabilities = torch.nn.functional.softmax(output, dim=1)[0].cpu().numpy()  # e.g. array([0.1, 0.2, 0.6, 0.1]) - softmax probabilities
+            sorted_indices = np.argsort(probabilities)[::-1]  # e.g. array([2, 1, 0, 3]) - indices sorted by probability desc
+            top_1_idx, top_2_idx = sorted_indices[:2]  # e.g. 2, 1 - top 2 class indices
+            top_1_confidence = probabilities[top_1_idx]  # e.g. 0.6 - highest confidence
+            top_2_confidence = probabilities[top_2_idx]  # e.g. 0.2 - second highest confidence
 
             # Skip if confidence difference is too small
             if abs(top_1_confidence - top_2_confidence) < 0.1:
                 logger.warning(f"[SKIP] Confidence too close: Top-1={top_1_confidence:.2f}, Top-2={top_2_confidence:.2f}")
                 return None, None
 
-            return top_1_idx, top_1_confidence
+            return top_1_idx, top_1_confidence  # e.g. (2, 0.6)
     except Exception as e:
         logger.error(f"[ERROR] Classification failed: {e}")
         return None, None
