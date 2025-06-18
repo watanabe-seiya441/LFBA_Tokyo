@@ -25,9 +25,14 @@ from centralmaneger.serial.communication import SerialCommunication
 from centralmaneger.serial.serial_reader import listen_serial
 from centralmaneger.serial.serial_write import write_serial
 from centralmaneger.camera.cameraApp import capture_latest_frame, save_images
-from centralmaneger.image_classification.classifier import process_images, ImageClassifier, _classify_image
+# from centralmaneger.image_classification.classifier import process_images, ImageClassifier, _classify_image
 from centralmaneger.create_dataset.folder_monitor import monitor_folder
 from centralmaneger.model_training.model_training import train_controller
+
+# from tool.serial.communication import SerialCommunication
+# from tool.serial.serial_reader import listen_serial
+# from tool.serial.serial_write import write_serial
+from tool.image_classification.classifier import process_images, ImageClassifier, _classify_image
 
 print("[INFO] All packages loaded successfully.")
 
@@ -192,8 +197,8 @@ def start_threads(serial_comm, camera):
             threading.Thread(target=train_controller, args=(stop_event, start_train, BATCH_SIZE, EPOCHS, IMG_SIZE, LEARNING_RATE, DATASET_DIR, MODEL_DIR, MODEL_NAME, GPU, classes_queue, arch), daemon=True)
         )
 
-    for t in threads:
-        t.start()
+    for thread in threads:
+        thread.start()
     return threads
 
 # ----------------------------
@@ -208,6 +213,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# frameとlatest_inference_bitsをフロントに返す
+# note: process_imagesの中でやるべきかも
 @app.get("/api/inference")
 def api_inference():
     logger.debug(f"[API] Request received, bits: {latest_inference_bits}")
@@ -226,10 +233,10 @@ def api_inference():
         return {"imageUrl": "", "bits": latest_inference_bits}
         
     data_uri = "data:image/jpeg;base64," + base64.b64encode(buffer).decode()
-    bits = latest_inference_bits
-    logger.debug(f"[API] Response sent, bits: {bits}")
-    return {"imageUrl": data_uri, "bits": bits}
+    logger.debug(f"[API] Response sent, bits: {latest_inference_bits}")
+    return {"imageUrl": data_uri, "bits": latest_inference_bits}
 
+# note: process_imagesの中でやるべきかも
 def process_images_with_bits(stop_event, mode_train, frame_queue, write_queue, model_path, classes, classes_queue):
     """
     Process images and update global inference bits variable.
@@ -336,8 +343,8 @@ def main():
 
     threads[-1].join()
     stop_event.set()
-    for t in threads[:-1]:
-        t.join()
+    for thread in threads[:-1]:
+        thread.join()
 
     serial_comm.close()
     camera.release()
