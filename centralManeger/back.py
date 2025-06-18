@@ -41,52 +41,52 @@ with open("config.toml", "rb") as config_file:
     config = tomllib.load(config_file)
 
 # Configuration parameters
-SERIAL_PORT = config["serial"]["port"]
-BAUDRATE = config["serial"]["baudrate"]
-cameraID = config["camera"]["cameraID"]
-CLASSES = config["model"]["classes"]
-MODEL_NAME = config["model"]["name"]
-arch = config["model"]["arch"]
-is_update = config["model"]["is_update"]
-BATCH_SIZE = config["hyperparameters"]["batch_size"]
-EPOCHS = config["hyperparameters"]["epochs"]
-IMG_SIZE = config["hyperparameters"]["img_size"]
-LEARNING_RATE = config["hyperparameters"]["learning_rate"]
-DATASET_DIR = config["directory"]["dataset_dir"]
-MODEL_DIR = config["directory"]["model_dir"]
-GPU = config["gpu"]["gpu_index"]
-IMAGE_DIR = config["directory"]["image_dir"]
-THRESHOLD = config["monitoring"]["THRESHOLD"]
-CHECK_INTERVAL = config["monitoring"]["CHECK_INTERVAL"]
+SERIAL_PORT = config["serial"]["port"] # "/dev/ttyACM0"
+BAUDRATE = config["serial"]["baudrate"] # 9600
+cameraID = config["camera"]["cameraID"] # 0
+CLASSES = config["model"]["classes"] # ["0000", "0001", "0011", "0100", "0110", "1000", "1010", "1111"]
+MODEL_NAME = config["model"]["name"] # "dataset0b_vgg_best_model.pth"
+arch = config["model"]["arch"] # "vgg16"
+is_update = config["model"]["is_update"] # false
+BATCH_SIZE = config["hyperparameters"]["batch_size"] # 32
+EPOCHS = config["hyperparameters"]["epochs"] # 5
+IMG_SIZE = config["hyperparameters"]["img_size"] # 224
+LEARNING_RATE = config["hyperparameters"]["learning_rate"] # 0.001
+DATASET_DIR = config["directory"]["dataset_dir"] # "dataset"
+MODEL_DIR = config["directory"]["model_dir"] # "model"
+GPU = config["gpu"]["gpu_index"] # 1
+IMAGE_DIR = config["directory"]["image_dir"] # "image/test"
+THRESHOLD = config["monitoring"]["THRESHOLD"] # 10000 # flie count threshold
+CHECK_INTERVAL = config["monitoring"]["CHECK_INTERVAL"] # 60 
 
-MODEL_PATH = os.path.join(MODEL_DIR, MODEL_NAME)
+MODEL_PATH = os.path.join(MODEL_DIR, MODEL_NAME)  # e.g. "model/best_model.pth"
 
 # Thread management events
-stop_event = threading.Event()
-mode_train = threading.Event()
-mode_record = threading.Event()
+stop_event = threading.Event()  # e.g. Event() - system shutdown signal
+mode_train = threading.Event()  # e.g. Event() - training mode flag
+mode_record = threading.Event()  # e.g. Event() - frame recording mode flag
 # mode_train.set()  # 推論を有効にするためにコメントアウト
 mode_record.set()  # フレームキャプチャを有効にする
 
 # Queue definitions
-read_queue = queue.Queue()
-write_queue = queue.Queue()
-frame_queue = queue.Queue(maxsize=1)
-api_frame_queue = queue.Queue(maxsize=1)  # API専用のフレームキュー
-image_queue = queue.Queue()
-label_queue = queue.Queue(maxsize=1)
-classes_queue = queue.Queue()
-start_train = queue.Queue()
-start_train.put("start")
+read_queue = queue.Queue()  # e.g. Queue() - serial read data
+write_queue = queue.Queue()  # e.g. Queue() - serial write data
+frame_queue = queue.Queue(maxsize=1)  # e.g. Queue() - camera frames for inference
+api_frame_queue = queue.Queue(maxsize=1)  # e.g. Queue() - API専用のフレームキュー
+image_queue = queue.Queue()  # e.g. Queue() - images for dataset creation
+label_queue = queue.Queue(maxsize=1)  # e.g. Queue() - classification labels
+classes_queue = queue.Queue()  # e.g. Queue() - class names list
+start_train = queue.Queue()  # e.g. Queue() - training start signal
+start_train.put("start")  # e.g. "start" - initial training trigger
 
 # 最新の推論結果を保存するグローバル変数
-latest_inference_bits = "----"
+latest_inference_bits = "----"  # e.g. "0010", "1101" - 4-bit classification result
 
 # Logging setup
 log_dir = "log"
 os.makedirs(log_dir, exist_ok=True)
-start_time = datetime.now().strftime("%Y%m%dT%H%M%S")
-log_filename = f"{log_dir}/system_{start_time}.log"
+start_time = datetime.now().strftime("%Y%m%dT%H%M%S")  # e.g. "20241215T143052"
+log_filename = f"{log_dir}/system_{start_time}.log"  # e.g. "log/system_20241215T143052.log"
 
 # ファイルログの設定
 logging.basicConfig(
@@ -111,10 +111,10 @@ def handle_received_data():
     """
     while not stop_event.is_set():
         try:
-            received_data = read_queue.get(timeout=0.1)
-            mode_train.set() if received_data[5] == "0" else mode_train.clear()
-            mode_record.set() if received_data[6] == "1" else mode_record.clear()
-            latest_label = received_data[1:5]
+            received_data = read_queue.get(timeout=0.1)  # e.g. "A12340" - serial data string
+            mode_train.set() if received_data[5] == "0" else mode_train.clear()  # e.g. received_data[5] = "0" or "1"
+            mode_record.set() if received_data[6] == "1" else mode_record.clear()  # e.g. received_data[6] = "0" or "1"
+            latest_label = received_data[1:5]  # e.g. "1234" - 4-digit label
             if not label_queue.empty():
                 label_queue.get()
             label_queue.put(latest_label)
@@ -126,7 +126,7 @@ def user_input_listener():
     print("[INFO] Enter commands to interact with serial communication.")
     print("[INFO] Type 'q' or 'quit' to exit.")
     while not stop_event.is_set():
-        user_input = input("> ").strip()
+        user_input = input("> ").strip()  # e.g."quit", "test command"
         if user_input.lower() in ["q", "quit"]:
             print("[INFO] Stopping the system...")
             stop_event.set()
@@ -138,7 +138,7 @@ def distribute_frames(camera, frame_queue, api_frame_queue, stop_event, mode_rec
     カメラからのフレームを推論用とAPI用の両方のキューに配信
     """
     logger.info("[FRAME] Frame distribution started")
-    frame_count = 0
+    frame_count = 0  # number of processed frames
     while not stop_event.is_set():
         try:
             # mode_recordの状態を確認（元のcapture_latest_frameと同様）
@@ -147,7 +147,7 @@ def distribute_frames(camera, frame_queue, api_frame_queue, stop_event, mode_rec
                 time.sleep(0.1)
                 continue
                 
-            frame = camera.capture_frame()
+            frame = camera.capture_frame()  # e.g. numpy.ndarray(480, 640, 3) - BGR image
             if frame is not None:
                 frame_count += 1
                 
@@ -220,14 +220,14 @@ def api_inference():
     logger.debug(f"[API] Request received, bits: {latest_inference_bits}")
     
     try:
-        frame = api_frame_queue.get_nowait()
+        frame = api_frame_queue.get_nowait()  # e.g. numpy.ndarray(480, 640, 3) - BGR image
         logger.debug("[API] Frame retrieved from queue")
     except queue.Empty:
         logger.debug("[API] No frame available")
         return {"imageUrl": "", "bits": latest_inference_bits}
         
     import cv2, base64
-    ok, buffer = cv2.imencode('.jpg', frame)
+    ok, buffer = cv2.imencode('.jpg', frame)  # e.g. ok=True, buffer=encoded_bytes
     if not ok:
         logger.warning("[API] Failed to encode frame")
         return {"imageUrl": "", "bits": latest_inference_bits}
@@ -243,9 +243,9 @@ def process_images_with_bits(stop_event, mode_train, frame_queue, write_queue, m
     """
     global latest_inference_bits
     
-    classifier, previous_prediction, consecutive_count = None, None, 0
-    last_model_update = None
-    current_state = None
+    classifier, previous_prediction, consecutive_count = None, None, 0  # e.g. None, 2, 3
+    last_model_update = None  # e.g. None, 1640995200.123 - timestamp
+    current_state = None  # e.g. None, "0000", "0001", ...
     inference_count = 0
     
     logger.info("[INFERENCE] Image processing started")
@@ -253,18 +253,18 @@ def process_images_with_bits(stop_event, mode_train, frame_queue, write_queue, m
     while not stop_event.is_set():
         # モデルの更新チェック（元のコードから流用）
         if os.path.exists(model_path):
-            current_update = os.path.getmtime(model_path)
+            current_update = os.path.getmtime(model_path)  # e.g. 1640995200.123 - file modification timestamp
             if not classifier or current_update > (last_model_update or 0):
                 logger.info(f"[INFERENCE] Model loading from {model_path}")
                 try:
-                    classifier = ImageClassifier(model_path)
+                    classifier = ImageClassifier(model_path)  # e.g. ImageClassifier instance
                     logger.info("[INFERENCE] Classifier loaded successfully")
                 except Exception as e:
                     logger.error(f"[INFERENCE] Failed to load classifier: {e}")
                     classifier = None
                 
                 if not classes_queue.empty():
-                    classes = classes_queue.get()
+                    classes = classes_queue.get()  # e.g. ["0000", "0001", ...]
                     classes_queue.put(classes)
                     logger.info(f"[INFERENCE] Classes loaded: {len(classes)} classes")
                     
@@ -308,11 +308,11 @@ def process_images_with_bits(stop_event, mode_train, frame_queue, write_queue, m
             else:
                 logger.warning(f"[INFERENCE] Too many classes ({len(classes)}) for 4-bit representation")
 
-            consecutive_count = consecutive_count + 1 if predicted_class == previous_prediction else 1
+            consecutive_count = consecutive_count + 1 if predicted_class == previous_prediction else 1 
             if consecutive_count >= 3 and current_state != classes[predicted_class]:
-                write_queue.put(classes[predicted_class])
+                write_queue.put(classes[predicted_class])  # e.g. "0000", "0001", ...
                 logger.info(f"[INFERENCE] Stable prediction: {classes[predicted_class]} (Confidence: {confidence:.2f})")
-                current_state = classes[predicted_class]
+                current_state = classes[predicted_class]  # e.g. "0000", "0001", ...
                 time.sleep(5)
             previous_prediction = predicted_class
             frame_queue.task_done()
@@ -329,8 +329,8 @@ def process_images_with_bits(stop_event, mode_train, frame_queue, write_queue, m
         time.sleep(0.1)  # CPU使用率を下げるため
 
 def main():
-    serial_comm = SerialCommunication(SERIAL_PORT, BAUDRATE)
-    camera = Camera(camera_id=cameraID, capture_interval=1)
+    serial_comm = SerialCommunication(SERIAL_PORT, BAUDRATE)  # e.g. SerialCommunication("/dev/ttyUSB0", 9600)
+    camera = Camera(camera_id=cameraID, capture_interval=1)  # e.g. Camera(camera_id=0, capture_interval=1)
 
     threads = start_threads(serial_comm, camera)
 
@@ -341,7 +341,7 @@ def main():
     )
     api_thread.start()
 
-    threads[-1].join()
+    threads[-1].join()  # e.g. wait for user_input_listener thread
     stop_event.set()
     for thread in threads[:-1]:
         thread.join()
