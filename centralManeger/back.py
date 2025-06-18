@@ -20,19 +20,14 @@ from fastapi import FastAPI  # 追加
 from fastapi.middleware.cors import CORSMiddleware  # 追加
 import uvicorn  # 追加
 
-from centralmaneger.camera.camera import Camera
-from centralmaneger.serial.communication import SerialCommunication
-from centralmaneger.serial.serial_reader import listen_serial
-from centralmaneger.serial.serial_write import write_serial
-from centralmaneger.camera.cameraApp import capture_latest_frame, save_images
-# from centralmaneger.image_classification.classifier import process_images, ImageClassifier, _classify_image
-from centralmaneger.create_dataset.folder_monitor import monitor_folder
-from centralmaneger.model_training.model_training import train_controller
-
-# from tool.serial.communication import SerialCommunication
-# from tool.serial.serial_reader import listen_serial
-# from tool.serial.serial_write import write_serial
+from tool.camera.camera import Camera
+from tool.serial.communication import SerialCommunication
+from tool.serial.serial_reader import listen_serial
+from tool.serial.serial_write import write_serial
+from tool.camera.cameraApp import capture_latest_frame, save_images
 from tool.image_classification.classifier import process_images, ImageClassifier, _classify_image
+from tool.create_dataset.folder_monitor import monitor_folder
+from tool.model_training.model_training import train_controller
 
 print("[INFO] All packages loaded successfully.")
 
