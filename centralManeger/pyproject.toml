@@ -18,8 +18,10 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{include = "centralmaneger", from = "src"}]
-
+packages = [
+  { include = "centralmaneger", from = "src" },
+  { include = "tool",           from = "src" },
+]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"
